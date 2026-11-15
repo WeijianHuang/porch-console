@@ -94,6 +94,14 @@ CHANGELOG.md       变更记录
 
 源码目录待框架确定后添加。
 
+## 本地联调（当前）
+
+后端 `porch-os` 已选定 PostgreSQL 18.7，本地数据库由该仓库的 Compose 启动，步骤见 [后端本地开发环境](https://github.com/WeijianHuang/porch-os/blob/main/docs/LOCAL-DEV.md)。前端只通过 `API_BASE_URL` 访问后端 HTTP 接口：
+
+- **前端不直连数据库**，本仓库不存放数据库地址、账号或口令。
+- 数据库属于后端实现细节，不影响前端接口契约；接口风格确定后，这里改为指向契约文档。
+- 后端尚未提供可运行接口，因此本地暂时没有可联调的服务；`.env.example` 里的 `API_BASE_URL` 只是占位。
+
 ## 配套仓库
 
 后端：同一账号下的 **[porch-os](https://github.com/WeijianHuang/porch-os)** 仓库。接口契约变更需两边同步。
