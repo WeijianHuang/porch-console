@@ -10,7 +10,7 @@ License: MIT · 语言：中文文档（发布前补英文版）
 
 ## 项目简介
 
-Porch Console 是 Porch OS 的多店后台控制台，是店长和店员每天真正打开的那个界面。后端 `porch-os` 撑起结构与数据，这里负责把「多店」变得可操作：把当前在看哪家店做成全局上下文，切一次门店，看板、单据、库存、报表和权限全部跟着重取；跨店汇总只展示后端说你能看见的店，不让前端自己猜。
+Porch Console 是 Porch OS 的多店后台控制台，是店长和店员每天真正打开的那个界面。后端 `porch-os` 撑起结构与数据，这里负责把「多店」变得可操作：把当前在看哪家店做成全局上下文，切一次门店，看板、单据、库存、报表和权限全部跟着重取；跨店汇总按后端返回的可见门店集合显式多选门店，不设门店组，也不让前端自己猜。
 
 界面覆盖经营看板、商品与服务、开单收银、会员、报表、权限与店员。错误处理、令牌刷新、加载态、空态与网络不可用提示都有统一约定，避免每个页面各写一套。名字里的 `console` 是中性的：未来加店员端、老板手机端或顾客小程序，都不需要改名。
 
@@ -27,11 +27,12 @@ Porch Console 是 Porch OS 的多店后台控制台，是店长和店员每天�
 - **不做离线收银**：不建本地待提交队列、不缓存写操作、不做恢复补传与冲突合并；断网只提示，恢复后由用户重新提交（复用同一 `Idempotency-Key`）
 - **不做打印入口**：无小票模板、打印按钮与设备适配；需要凭证时用后端导出接口下载文件
 - **不做币种与时区选择**：金额一律人民币 `¥`，业务时间统一按 UTC+8 展示，不随浏览器本地时区变化，也不传时区参数
-- 以上三条与后端的 [ADR-0004](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0004-scope-baseline.md) 一致
+- **不做门店组 / 店群**：没有分组管理页、分组切换器与按组汇总视图；跨店视图由后端返回的可见门店集合 + 显式多选门店驱动，与后端 [ADR-0005](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0005-no-shop-groups.md) 一致
+- 以上边界与后端的 [ADR-0004](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0004-scope-baseline.md) / [ADR-0005](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0005-no-shop-groups.md) 一致
 
 ## About (English)
 
-Porch Console is the web console for Porch OS — the screen shop owners and staff open every day. The active shop is a global context: switching it invalidates every derived query and refreshes permissions, while cross-shop views are driven by the set of shops the backend says you can see. It covers dashboards, catalog, checkout, members, reports and staff permissions, with shared conventions for error mapping, token refresh, loading, empty and network-unavailable states. Offline checkout, printing and currency/timezone pickers are explicitly out of scope (ADR-0004): the console shows one currency (CNY) and one timezone (UTC+8), and a network failure never turns into a locally queued order.
+Porch Console is the web console for Porch OS — the screen shop owners and staff open every day. The active shop is a global context: switching it invalidates every derived query and refreshes permissions, while cross-shop views are driven by the set of shops the backend says you can see. It covers dashboards, catalog, checkout, members, reports and staff permissions, with shared conventions for error mapping, token refresh, loading, empty and network-unavailable states. There is no shop-group concept: cross-shop views select shops explicitly from the set the backend says you can see (ADR-0005). Offline checkout, printing, currency/timezone pickers and shop groups are explicitly out of scope (ADR-0004 / ADR-0005): the console shows one currency (CNY) and one timezone (UTC+8), and a network failure never turns into a locally queued order.
 
 The name is deliberately neutral: adding a staff app, an owner mobile view or a customer mini program later will not require a rename. Framework and API client are still undecided; this repository currently fixes the interaction and engineering conventions.
 
@@ -44,13 +45,13 @@ The name is deliberately neutral: adding a staff app, an owner mobile view or a 
 | 商品与服务 | 统一目录 + 按店价格、库存、上下架覆盖 |
 | 开单收银 | 单据绑定门店与操作人，提交幂等 |
 | 会员 | 跨店档案、余额与消费记录 |
-| 报表 | 单店明细、店群汇总，导出走流式下载 |
+| 报表 | 单店明细、跨店汇总（按后端返回的可见门店集合选择门店，不设门店组），导出走流式下载 |
 | 权限与店员 | 角色配置、门店可见范围 |
 
 ## 多店交互约定
 
 - 门店是**全局上下文**，切换后所有派生查询与缓存必须失效重取，不能只改前端状态。
-- 跨店视图必须由后端返回的可见门店集合驱动，不信任本地伪造的门店 ID。
+- 跨店视图必须由后端返回的可见门店集合驱动，用显式多选门店指定范围，不信任本地伪造的门店 ID；**不存在门店组 / 店群维度，也不做按组汇总**（后端 [ADR-0005](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0005-no-shop-groups.md)）。
 - 切换门店后重新拉取权限；出现无权限时给出可读提示，不显示空白页。
 - URL 中不携带令牌、门店敏感参数；刷新页面能恢复到合法门店上下文。
 - **只有门店上下文，没有租户 / 组织 / 公司等上层切换**；可见门店集合完全由后端返回，隔离模型见 [后端 ADR-0003](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0003-shop-level-isolation.md)。
@@ -109,7 +110,7 @@ CHANGELOG.md       变更记录
 
 - **前端不直连数据库**，本仓库不存放数据库地址、账号或口令。
 - 数据库属于后端实现细节，不影响前端接口契约；接口契约为 **REST + OpenAPI**，见 [后端接口设计](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/03-api-design.md) 与 [详细设计总览](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/00-overview.md)。
-- 后端范围基线已锁定（[ADR-0004](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0004-scope-baseline.md)）：单币种 CNY、统一 UTC+8、暂不归档、不打印、不离线收银；前端据此不预留币种/时区选择、打印与离线提交入口。
+- 后端范围基线已锁定（[ADR-0004](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0004-scope-baseline.md)）：单币种 CNY、统一 UTC+8、暂不归档、不打印、不离线收银；前端据此不预留币种/时区选择、打印与离线提交入口。后端 [ADR-0005](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0005-no-shop-groups.md) 取消门店组，前端同样不预留分组管理与按组汇总入口。
 - 后端尚未提供可运行接口，因此本地暂时没有可联调的服务；`.env.example` 里的 `API_BASE_URL` 只是占位。接口契约是设计提案，尚未冻结，前端选型时可据此评估但需留意后续变更。
 
 ## 配套仓库
