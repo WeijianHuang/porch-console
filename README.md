@@ -12,7 +12,9 @@ License: MIT · 语言：中文文档（发布前补英文版）
 
 Porch Console 是 Porch OS 的多店后台控制台，是店长和店员每天真正打开的那个界面。后端 `porch-os` 撑起结构与数据，这里负责把「多店」变得可操作：把当前在看哪家店做成全局上下文，切一次门店，看板、单据、库存、报表和权限全部跟着重取；跨店汇总只展示后端说你能看见的店，不让前端自己猜。
 
-界面覆盖经营看板、商品与服务、开单收银、会员、报表、权限与店员。错误处理、令牌刷新、加载态、空态与离线提示都有统一约定，避免每个页面各写一套。名字里的 `console` 是中性的：未来加店员端、老板手机端或顾客小程序，都不需要改名。
+界面覆盖经营看板、商品与服务、开单收银、会员、报表、权限与店员。错误处理、令牌刷新、加载态、空态与网络不可用提示都有统一约定，避免每个页面各写一套。名字里的 `console` 是中性的：未来加店员端、老板手机端或顾客小程序，都不需要改名。
+
+> 这里的「网络不可用提示」只是错误态文案，**不代表支持离线收银**：断网期间一律不允许提交单据，详见 [后端 ADR-0004](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0004-scope-baseline.md)。
 
 框架与 API 客户端方案尚未锁定，当前仓库先固定交互约定与工程规范。
 
@@ -22,10 +24,14 @@ Porch Console 是 Porch OS 的多店后台控制台，是店长和店员每天�
 - 不在前端推导可见门店范围或权限
 - 不把令牌放进 localStorage 或 URL
 - 不硬编码 API 地址，不预设框架绑定的目录结构
+- **不做离线收银**：不建本地待提交队列、不缓存写操作、不做恢复补传与冲突合并；断网只提示，恢复后由用户重新提交（复用同一 `Idempotency-Key`）
+- **不做打印入口**：无小票模板、打印按钮与设备适配；需要凭证时用后端导出接口下载文件
+- **不做币种与时区选择**：金额一律人民币 `¥`，业务时间统一按 UTC+8 展示，不随浏览器本地时区变化，也不传时区参数
+- 以上三条与后端的 [ADR-0004](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0004-scope-baseline.md) 一致
 
 ## About (English)
 
-Porch Console is the web console for Porch OS — the screen shop owners and staff open every day. The active shop is a global context: switching it invalidates every derived query and refreshes permissions, while cross-shop views are driven by the set of shops the backend says you can see. It covers dashboards, catalog, checkout, members, reports and staff permissions, with shared conventions for error mapping, token refresh, loading, empty and offline states.
+Porch Console is the web console for Porch OS — the screen shop owners and staff open every day. The active shop is a global context: switching it invalidates every derived query and refreshes permissions, while cross-shop views are driven by the set of shops the backend says you can see. It covers dashboards, catalog, checkout, members, reports and staff permissions, with shared conventions for error mapping, token refresh, loading, empty and network-unavailable states. Offline checkout, printing and currency/timezone pickers are explicitly out of scope (ADR-0004): the console shows one currency (CNY) and one timezone (UTC+8), and a network failure never turns into a locally queued order.
 
 The name is deliberately neutral: adding a staff app, an owner mobile view or a customer mini program later will not require a rename. Framework and API client are still undecided; this repository currently fixes the interaction and engineering conventions.
 
@@ -54,7 +60,9 @@ The name is deliberately neutral: adding a staff app, an owner mobile view or a 
 | 主题 | 约定 |
 |---|---|
 | API 客户端 | 统一封装，Base URL 走环境变量；令牌自动附加，不在业务组件里裸调 fetch |
-| 错误处理 | 按响应体 `error.retryable` 决定是否重试，不按 HTTP 大类猜；可重试最多 3 次并复用同一 `Idempotency-Key`，不可重试映射为可读文案；网络失败显示离线提示。错误码表见 [后端接口设计](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/03-api-design.md) |
+| 错误处理 | 按响应体 `error.retryable` 决定是否重试，不按 HTTP 大类猜；可重试最多 3 次并复用同一 `Idempotency-Key`，不可重试映射为可读文案；网络失败显示「网络不可用」提示并保留草稿，**不允许离线提交单据**。错误码表见 [后端接口设计](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/03-api-design.md) |
+| 时间展示 | 后端返回 ISO 8601 UTC，前端统一按 `Asia/Shanghai`（UTC+8）渲染；业务日、日报分组、单号日期都以后端口径为准，不用浏览器本地时区，也不传 `tz` 参数 |
+| 金额展示 | 单一 CNY，固定 `¥` 前缀；金额字段是字符串，解析为定点类型后再格式化，不用浮点运算；没有币种切换与汇率显示 |
 | 认证 | 401 自动刷新令牌后重试一次；访问令牌不存 localStorage，也不放进 URL |
 | 状态 | 每个数据视图都有加载态、错误态、空态；禁止用占位错误提示 |
 | 类型 | 前后端错误结构与响应形状保持类型一致；禁止硬编码 API 地址 |
@@ -101,6 +109,7 @@ CHANGELOG.md       变更记录
 
 - **前端不直连数据库**，本仓库不存放数据库地址、账号或口令。
 - 数据库属于后端实现细节，不影响前端接口契约；接口契约为 **REST + OpenAPI**，见 [后端接口设计](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/03-api-design.md) 与 [详细设计总览](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/00-overview.md)。
+- 后端范围基线已锁定（[ADR-0004](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0004-scope-baseline.md)）：单币种 CNY、统一 UTC+8、暂不归档、不打印、不离线收银；前端据此不预留币种/时区选择、打印与离线提交入口。
 - 后端尚未提供可运行接口，因此本地暂时没有可联调的服务；`.env.example` 里的 `API_BASE_URL` 只是占位。接口契约是设计提案，尚未冻结，前端选型时可据此评估但需留意后续变更。
 
 ## 配套仓库
