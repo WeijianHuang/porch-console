@@ -1,0 +1,38 @@
+# 环境变量与密钥：绝不提交
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+credentials*
+
+# 依赖与构建产物
+node_modules/
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+.turbo/
+.cache/
+coverage/
+storybook-static/
+playwright-report/
+*.tsbuildinfo
+*.log
+
+# 本地数据导出与快照（可能含真实经营数据）
+*.dump
+backups/
+snapshots/
+tmp/
+
+# 编辑器与操作系统
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
