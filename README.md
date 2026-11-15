@@ -54,7 +54,7 @@ The name is deliberately neutral: adding a staff app, an owner mobile view or a 
 | 主题 | 约定 |
 |---|---|
 | API 客户端 | 统一封装，Base URL 走环境变量；令牌自动附加，不在业务组件里裸调 fetch |
-| 错误处理 | 4xx 不重试并映射为可读文案；5xx 自动重试最多 3 次；网络失败显示离线提示 |
+| 错误处理 | 按响应体 `error.retryable` 决定是否重试，不按 HTTP 大类猜；可重试最多 3 次并复用同一 `Idempotency-Key`，不可重试映射为可读文案；网络失败显示离线提示。错误码表见 [后端接口设计](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/03-api-design.md) |
 | 认证 | 401 自动刷新令牌后重试一次；访问令牌不存 localStorage，也不放进 URL |
 | 状态 | 每个数据视图都有加载态、错误态、空态；禁止用占位错误提示 |
 | 类型 | 前后端错误结构与响应形状保持类型一致；禁止硬编码 API 地址 |
@@ -100,12 +100,12 @@ CHANGELOG.md       变更记录
 后端 `porch-os` 已选定 PostgreSQL 18.7，本地数据库由该仓库的 Compose 启动，步骤见 [后端本地开发环境](https://github.com/WeijianHuang/porch-os/blob/main/docs/LOCAL-DEV.md)。前端只通过 `API_BASE_URL` 访问后端 HTTP 接口：
 
 - **前端不直连数据库**，本仓库不存放数据库地址、账号或口令。
-- 数据库属于后端实现细节，不影响前端接口契约；接口风格确定后，这里改为指向契约文档。
-- 后端尚未提供可运行接口，因此本地暂时没有可联调的服务；`.env.example` 里的 `API_BASE_URL` 只是占位。
+- 数据库属于后端实现细节，不影响前端接口契约；接口契约为 **REST + OpenAPI**，见 [后端接口设计](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/03-api-design.md) 与 [详细设计总览](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/00-overview.md)。
+- 后端尚未提供可运行接口，因此本地暂时没有可联调的服务；`.env.example` 里的 `API_BASE_URL` 只是占位。接口契约是设计提案，尚未冻结，前端选型时可据此评估但需留意后续变更。
 
 ## 配套仓库
 
-后端：同一账号下的 **[porch-os](https://github.com/WeijianHuang/porch-os)** 仓库。接口契约变更需两边同步。
+后端：同一账号下的 **[porch-os](https://github.com/WeijianHuang/porch-os)** 仓库。接口契约见 [03 接口设计](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/03-api-design.md)，详细设计见 [00 总览](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/00-overview.md)；契约变更需两边同步。
 
 ## 贡献
 
