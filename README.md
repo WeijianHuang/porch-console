@@ -47,6 +47,7 @@ The name is deliberately neutral: adding a staff app, an owner mobile view or a 
 - 跨店视图必须由后端返回的可见门店集合驱动，不信任本地伪造的门店 ID。
 - 切换门店后重新拉取权限；出现无权限时给出可读提示，不显示空白页。
 - URL 中不携带令牌、门店敏感参数；刷新页面能恢复到合法门店上下文。
+- **只有门店上下文，没有租户 / 组织 / 公司等上层切换**；可见门店集合完全由后端返回，隔离模型见 [后端 ADR-0003](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0003-shop-level-isolation.md)。
 
 ## 前端工程约定（与框架无关）
 
