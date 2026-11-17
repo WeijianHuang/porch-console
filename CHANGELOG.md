@@ -6,15 +6,8 @@
 
 ### 新增
 
+- `docs/OPEN-QUESTIONS.md`：**前端待确认清单 FQ-01–16**——FQ-01–06 阻塞开工（技术栈与语言、API 类型来源、刷新令牌存储、R1 页面范围、测试/CI 门禁、内部工程复用边界），FQ-07–16 给默认口径可「按建议」推进；附「无需再确认」与「明确延后」边界。
 - 对齐后端 [ADR-0008](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0008-design-freeze-and-nq-resolutions.md)：记录「后端详细设计已冻结」「NQ-14 前端选型依据」「审计超期查询错误契约」与新增的 `design/07`–`09` 分册入口。
-
-### 变更
-
-- 待定决策章节改为「前端选型（本仓决策）」：决策权仍归本仓，选型以既有内部前端工程（待重构）实践为依据；**内部工程名称与源码不写入公开仓库**。
-- 审计超期查询由「待后端确认」改为已冻结契约：`400 AUDIT_RETENTION_WINDOW_EXCEEDED` + `earliest_queryable_at`，不得渲染空态、不得静默裁剪起始时间；不提供专用审计导出端点，窗口内导出复用统一导出任务。
-- 「本地联调」与「配套仓库」中「接口契约是设计提案、尚未冻结」的表述改为**已冻结**；变更需两仓同步。边界、About (English)、`CONTRIBUTING.md` 同步指向 ADR-0008。
-
-
 - 仓库骨架：README、MIT 许可证、环境变量占位、CI 骨架检查、PR 模板、贡献指南。
 - 多店交互约定与框架无关的前端工程约定（错误处理、认证、状态、类型与安全）。
 - 待定决策清单：框架 / API 客户端方案 / 状态管理 / 组件库 / 实时方案 / 测试工具。
@@ -22,6 +15,10 @@
 
 ### 变更
 
+- **订正过期事实**：「本地联调」原先写「后端尚未提供可运行接口」，现改为后端 R1 已可运行（`cmd/api`：auth / me / shops / catalog / members / health / ready），单据 / 库存 / 报表 / 导出属 R2/R3；英文 About 的部署描述由「编排平台」同步为 Docker `api` × 2 / `worker` × 2；README 增加待确认清单入口。
+- 待定决策章节改为「前端选型（本仓决策）」：决策权仍归本仓，选型以既有内部前端工程（待重构）实践为依据；**内部工程名称与源码不写入公开仓库**。
+- 审计超期查询由「待后端确认」改为已冻结契约：`400 AUDIT_RETENTION_WINDOW_EXCEEDED` + `earliest_queryable_at`，不得渲染空态、不得静默裁剪起始时间；不提供专用审计导出端点，窗口内导出复用统一导出任务。
+- 「本地联调」与「配套仓库」中「接口契约是设计提案、尚未冻结」的表述改为**已冻结**；变更需两仓同步。边界、About (English)、`CONTRIBUTING.md` 同步指向 ADR-0008。
 - 补充「本地联调」说明：后端已选定 PostgreSQL 18.7，数据库由 `porch-os` 的 Compose 提供；前端不直连数据库、不在本仓库存放数据库地址与凭据。
 - 「多店交互约定」明确只有门店上下文，不引入租户 / 组织 / 公司等上层切换，可见门店集合完全由后端返回（对应后端 ADR-0003）。
 - 错误处理约定改为按响应体 `error.retryable` 判定重试（可重试时复用同一 `Idempotency-Key`），与后端 [03 接口设计](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/03-api-design.md) 的错误码语义对齐；「本地联调」与「配套仓库」指向后端前期详细设计分册（当时为设计提案，现已由后端 [ADR-0008](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0008-design-freeze-and-nq-resolutions.md) 冻结）。
