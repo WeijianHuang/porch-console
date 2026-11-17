@@ -2,7 +2,7 @@
 
 - 状态：已接受（2026-11-17）
 - 决策问题：把登录后落地页从门店列表改为**队列页**，并新增队列与服务人员两个 R1 页面，对齐后端 [ADR-0009](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0009-queues-and-staff.md)
-- 影响范围：路由表（`App.tsx`）、侧边栏菜单（`AppShell.tsx`）、API 类型 / client / query keys、队列页与服务人员页；不改变认证、门店上下文与缓存失效协议（ADR-0006 / 前端 ADR-0001 FQ-10）
+- 影响范围：路由表（`App.tsx`）、侧边栏菜单（`AppShell.tsx`）、API 类型 / client / query keys、队列页与服务人员页；在岗状态与队列内顺序对齐后端 ADR-0010；不改变认证、门店上下文与缓存失效协议（ADR-0006 / 前端 ADR-0001 FQ-10）
 
 ## 背景
 
@@ -11,8 +11,8 @@
 ## 决策
 
 1. **默认路由**：`/` 与登录后落地由 `/shops` 改为 `/queues`；侧边栏第一项为「队列」，第二项为「服务人员」。
-2. **队列页**：按 `currentShopId` 拉取 `GET /shops/{id}/queues`，按 `seq` 升序以**横向看板**展示——每个队列是一列，列头显示圆形序号、名称、状态与服务人员数量；列内服务人员以**小卡片**逐个呈现（头像首字 + 姓名 + 工号，工号仅在已取得本店服务人员列表时显示）。不再用纵向表格列表。可新建（序号 + 名称，序号正整数、店内唯一）；列尾「管理」弹窗勾选本店服务人员，`PUT / DELETE /queues/{queueId}/staff/{staffId}` 分配/移出。每列详情按 `GET /shops/{id}/queues/{queueId}` 拉取，query key 含 `current_shop_id`，分配变更后同店队列详情一并失效重取。
-3. **服务人员页**：`GET / POST /staff` 建档与列表；详情 `GET /staff/{id}` 展示该人所在的多个队列（后端按 `queue_staff` 折叠）。
+2. **队列页**：按 `currentShopId` 拉取 `GET /shops/{id}/queues`，按 `seq` 升序以**横向看板**展示——每个队列是一列，列头显示圆形序号、名称、状态与服务人员数量；列内服务人员以**小卡片**逐个呈现（头像首字 + 姓名 + 在岗标记 + 工号，工号仅在已取得本店服务人员列表时显示）。不再用纵向表格列表。可新建（序号 + 名称，序号正整数、店内唯一）；列尾「管理」弹窗勾选本店服务人员，`PUT / DELETE /queues/{queueId}/staff/{staffId}` 分配/移出。卡片可拖拽重排，并提供上移 / 下移按钮兜底；两者都调用 `PUT /queues/{queueId}/staff/order` 全量提交有序 `staff_ids` 与队列 `version`，失败回滚本地顺序并重取。每列详情按 `GET /shops/{id}/queues/{queueId}` 拉取，query key 含 `current_shop_id`，分配 / 重排 / 在岗变更后同店队列详情一并失效重取（对齐后端 [ADR-0010](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0010-duty-status-and-queue-order.md)）。
+3. **服务人员页**：`GET / POST /staff` 建档与列表；详情 `GET /staff/{id}` 展示该人所在的多个队列（后端按 `queue_staff` 折叠）。列表显示在岗 / 下班标记，写权限用户可切换（`PATCH /staff/{id}` 带 `duty_status` 与 `version`）；下班人员仍在队列卡片中，仅弱化展示，不隐藏、不计入可服务筛选。
 4. **单店上下文不变**：所有新端点经统一 client 带 `X-Shop-Id`，写操作带 `Idempotency-Key`；query key 含 `current_shop_id`，切换门店走既有「取消在途 + 失效 shop-scope 缓存 + 重拉权限」协议。
 5. **权限**：写操作按 `queue.write` 显示入口，只读用户看不到新建 / 分配按钮；菜单渲染仍只依据 `/me/permissions`，不作授权依据。
 

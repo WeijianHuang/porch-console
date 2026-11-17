@@ -151,6 +151,43 @@ body {
   font-size: 12px;
 }
 
+.staff-card.off-duty {
+  opacity: 0.55;
+}
+
+.staff-card[draggable='true'] {
+  cursor: grab;
+}
+
+.staff-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.staff-card-meta .ant-tag {
+  margin-inline-end: 0;
+}
+
+.drag-handle {
+  color: #9ca3af;
+  font-size: 16px;
+  user-select: none;
+}
+
+.staff-card-actions {
+  display: flex;
+  flex-direction: column;
+  margin-left: auto;
+}
+
+.staff-card-actions .ant-btn {
+  height: 20px;
+  padding: 0 4px;
+  line-height: 1;
+}
+
 .queue-lane-empty {
   padding: 16px 0;
   border: 1px dashed #d9e0dc;

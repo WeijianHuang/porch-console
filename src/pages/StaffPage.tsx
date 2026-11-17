@@ -6,7 +6,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { queryKeys } from '../api/keys'
 import { staffApi } from '../api/queues'
-import type { CreateStaffRequest, Staff, StaffDetail } from '../api/types'
+import type { CreateStaffRequest, Staff, StaffDetail, UpdateStaffRequest } from '../api/types'
 import { EmptyHint, ErrorState, PageLoading } from '../components/RequestState'
 import { hasPermission, useAuthStore } from '../stores/authStore'
 import { useShopStore } from '../stores/shopStore'
@@ -42,6 +42,19 @@ export default function StaffPage() {
       if (shopId) void queryClient.invalidateQueries({ queryKey: queryKeys.staff(shopId) })
     },
     onError: (error) => message.error((error as Error).message || '建档失败'),
+  })
+
+  const setDuty = useMutation({
+    mutationFn: ({ staffId, body }: { staffId: string; body: UpdateStaffRequest }) =>
+      staffApi.update(shopId!, staffId, body),
+    onSuccess: () => {
+      message.success('在岗状态已更新')
+      if (!shopId) return
+      void queryClient.invalidateQueries({ queryKey: queryKeys.staff(shopId) })
+      // Queue details embed duty_status on every StaffRef (ADR-0010).
+      void queryClient.invalidateQueries({ queryKey: ['shop-scope', shopId, 'queue'] })
+    },
+    onError: (error) => message.error((error as Error).message || '状态更新失败'),
   })
 
   const openDetail = async (staffId: string) => {
@@ -94,13 +107,37 @@ export default function StaffPage() {
                 status === 'active' ? <Tag color="green">在职</Tag> : <Tag>停用</Tag>,
             },
             {
+              title: '在岗',
+              dataIndex: 'duty_status',
+              width: 90,
+              render: (duty: string) =>
+                duty === 'on' ? <Tag color="blue">在岗</Tag> : <Tag>下班</Tag>,
+            },
+            {
               title: '操作',
               key: 'actions',
-              width: 100,
+              width: 180,
               render: (_: unknown, item: Staff) => (
-                <Button type="link" onClick={() => void openDetail(item.public_id)}>
-                  查看队列
-                </Button>
+                <Space size={0}>
+                  <Button type="link" onClick={() => void openDetail(item.public_id)}>
+                    查看队列
+                  </Button>
+                  {canWrite && item.status === 'active' ? (
+                    <Button
+                      type="link"
+                      loading={setDuty.isPending}
+                      onClick={() => setDuty.mutate({
+                        staffId: item.public_id,
+                        body: {
+                          duty_status: item.duty_status === 'on' ? 'off' : 'on',
+                          version: item.version,
+                        },
+                      })}
+                    >
+                      {item.duty_status === 'on' ? '下班' : '上班'}
+                    </Button>
+                  ) : null}
+                </Space>
               ),
             },
           ]}

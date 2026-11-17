@@ -7,7 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { queryKeys } from '../api/keys'
 import { queuesApi, staffApi } from '../api/queues'
-import type { CreateQueueRequest, QueueDetail, Staff } from '../api/types'
+import type { CreateQueueRequest, QueueDetail, QueueView, Staff } from '../api/types'
 import { EmptyHint, ErrorState, PageLoading } from '../components/RequestState'
 import { hasPermission, useAuthStore } from '../stores/authStore'
 import { useShopStore } from '../stores/shopStore'
@@ -72,6 +72,22 @@ export default function QueuesPage() {
     onError: (error) => message.error((error as Error).message || '创建失败'),
   })
 
+  const reorder = useMutation({
+    mutationFn: ({ queueId, staffIds, version }: {
+      queueId: string
+      staffIds: string[]
+      version: number
+    }) => queuesApi.reorderStaff(shopId!, queueId, { staff_ids: staffIds, version }),
+    onSuccess: () => {
+      message.success('队列顺序已更新')
+      invalidate()
+    },
+    onError: (error) => message.error((error as Error).message || '排序失败，请重读后重试'),
+  })
+
+  const submitOrder = (queueId: string, staffIds: string[], version: number) =>
+    reorder.mutateAsync({ queueId, staffIds, version })
+
   const openCreate = () => {
     form.resetFields()
     form.setFieldsValue({ seq: 1 })
@@ -112,52 +128,19 @@ export default function QueuesPage() {
         <div className="queue-board">
           {queueViews.map((queue, index) => {
             const detailQuery = detailQueries[index]
-            const members = detailQuery?.data?.data?.staff ?? []
             return (
-              <section
+              <QueueLane
                 key={queue.public_id}
-                className="queue-lane"
-                aria-label={`队列 ${queue.seq} ${queue.name}`}
-              >
-                <header className="queue-lane-head">
-                  <span className="queue-seq">{queue.seq}</span>
-                  <span className="queue-lane-title" title={queue.name}>{queue.name}</span>
-                  {queue.status === 'active' ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>}
-                </header>
-                <div className="queue-lane-meta">
-                  <Tag color={queue.staff_count > 0 ? 'blue' : 'default'}>{queue.staff_count} 人</Tag>
-                </div>
-                <div className="queue-staff-list">
-                  {detailQuery?.isPending ? (
-                    <div className="queue-lane-empty">服务人员加载中…</div>
-                  ) : null}
-                  {detailQuery?.isError ? (
-                    <div className="queue-lane-empty">服务人员加载失败</div>
-                  ) : null}
-                  {detailQuery?.isSuccess && members.length === 0 ? (
-                    <div className="queue-lane-empty">暂无服务人员</div>
-                  ) : null}
-                  {members.map((member) => {
-                    const code = staffByPublicId.get(member.public_id)?.code
-                    return (
-                      <article key={member.public_id} className="staff-card">
-                        <Avatar size={32} style={{ backgroundColor: '#1677ff', flexShrink: 0 }}>
-                          {member.display_name.slice(0, 1)}
-                        </Avatar>
-                        <div className="staff-card-body">
-                          <div className="staff-card-name">{member.display_name}</div>
-                          {code ? <div className="staff-card-code">工号 {code}</div> : null}
-                        </div>
-                      </article>
-                    )
-                  })}
-                </div>
-                <footer className="queue-lane-foot">
-                  <Button type="link" size="small" onClick={() => setSelectedQueueId(queue.public_id)}>
-                    管理
-                  </Button>
-                </footer>
-              </section>
+                queue={queue}
+                detail={detailQuery?.data?.data}
+                loading={detailQuery?.isPending ?? false}
+                error={detailQuery?.isError ?? false}
+                staffByPublicId={staffByPublicId}
+                canWrite={canWrite}
+                reordering={reorder.isPending}
+                onSubmitOrder={submitOrder}
+                onManage={() => setSelectedQueueId(queue.public_id)}
+              />
             )
           })}
         </div>
@@ -200,6 +183,141 @@ export default function QueuesPage() {
         onChanged={invalidate}
       />
     </Card>
+  )
+}
+
+interface QueueLaneProps {
+  queue: QueueView
+  detail?: QueueDetail
+  loading: boolean
+  error: boolean
+  staffByPublicId: Map<string, Staff>
+  canWrite: boolean
+  reordering: boolean
+  onSubmitOrder: (queueId: string, staffIds: string[], version: number) => Promise<unknown>
+  onManage: () => void
+}
+
+/** One horizontal lane; members are draggable cards with a click fallback. */
+function QueueLane({
+  queue, detail, loading, error, staffByPublicId, canWrite, reordering, onSubmitOrder, onManage,
+}: QueueLaneProps) {
+  const [order, setOrder] = useState<string[]>(() => detail?.staff.map((s) => s.public_id) ?? [])
+  useEffect(() => {
+    setOrder(detail?.staff.map((s) => s.public_id) ?? [])
+  }, [detail])
+
+  const members = new Map(detail?.staff.map((s) => [s.public_id, s]) ?? [])
+
+  const applyOrder = async (next: string[]) => {
+    if (!detail || !canWrite) return
+    setOrder(next)
+    try {
+      await onSubmitOrder(queue.public_id, next, detail.version)
+    } catch {
+      setOrder(detail.staff.map((s) => s.public_id))
+    }
+  }
+
+  const move = (staffId: string, delta: number) => {
+    const next = [...order]
+    const from = next.indexOf(staffId)
+    const to = from + delta
+    if (from < 0 || to < 0 || to >= next.length) return
+    next.splice(from, 1)
+    next.splice(to, 0, staffId)
+    void applyOrder(next)
+  }
+
+  const dropOn = (targetId: string, sourceId: string) => {
+    if (!sourceId || sourceId === targetId) return
+    const next = [...order]
+    const from = next.indexOf(sourceId)
+    const to = next.indexOf(targetId)
+    if (from < 0 || to < 0) return
+    next.splice(from, 1)
+    next.splice(to, 0, sourceId)
+    void applyOrder(next)
+  }
+
+  return (
+    <section className="queue-lane" aria-label={`队列 ${queue.seq} ${queue.name}`}>
+      <header className="queue-lane-head">
+        <span className="queue-seq">{queue.seq}</span>
+        <span className="queue-lane-title" title={queue.name}>{queue.name}</span>
+        {queue.status === 'active' ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>}
+      </header>
+      <div className="queue-lane-meta">
+        <Tag color={queue.staff_count > 0 ? 'blue' : 'default'}>{queue.staff_count} 人</Tag>
+        {canWrite ? <Typography.Text type="secondary">拖动卡片或用箭头调整顺序</Typography.Text> : null}
+      </div>
+      <div className="queue-staff-list">
+        {loading ? <div className="queue-lane-empty">服务人员加载中…</div> : null}
+        {error ? <div className="queue-lane-empty">服务人员加载失败</div> : null}
+        {detail && order.length === 0 ? <div className="queue-lane-empty">暂无服务人员</div> : null}
+        {order.map((staffId) => {
+          const member = members.get(staffId)
+          if (!member) return null
+          const code = staffByPublicId.get(staffId)?.code
+          const index = order.indexOf(staffId)
+          return (
+            <article
+              key={staffId}
+              className={`staff-card${member.duty_status === 'on' ? '' : ' off-duty'}`}
+              draggable={canWrite}
+              title={canWrite ? '拖动调整队列内顺序' : undefined}
+              onDragStart={(event) => event.dataTransfer.setData('text/plain', staffId)}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault()
+                dropOn(staffId, event.dataTransfer.getData('text/plain'))
+              }}
+            >
+              {canWrite ? <span className="drag-handle" aria-hidden="true">≡</span> : null}
+              <Avatar size={32} style={{ backgroundColor: '#1677ff', flexShrink: 0 }}>
+                {member.display_name.slice(0, 1)}
+              </Avatar>
+              <div className="staff-card-body">
+                <div className="staff-card-name">{member.display_name}</div>
+                <div className="staff-card-meta">
+                  <Tag color={member.duty_status === 'on' ? 'blue' : 'default'}>
+                    {member.duty_status === 'on' ? '在岗' : '下班'}
+                  </Tag>
+                  {code ? <span className="staff-card-code">工号 {code}</span> : null}
+                </div>
+              </div>
+              {canWrite ? (
+                <div className="staff-card-actions">
+                  <Button
+                    type="text"
+                    size="small"
+                    title="上移"
+                    aria-label={`上移 ${member.display_name}`}
+                    disabled={reordering || index === 0}
+                    onClick={() => move(staffId, -1)}
+                  >
+                    ↑
+                  </Button>
+                  <Button
+                    type="text"
+                    size="small"
+                    title="下移"
+                    aria-label={`下移 ${member.display_name}`}
+                    disabled={reordering || index === order.length - 1}
+                    onClick={() => move(staffId, 1)}
+                  >
+                    ↓
+                  </Button>
+                </div>
+              ) : null}
+            </article>
+          )
+        })}
+      </div>
+      <footer className="queue-lane-foot">
+        <Button type="link" size="small" onClick={onManage}>管理</Button>
+      </footer>
+    </section>
   )
 }
 

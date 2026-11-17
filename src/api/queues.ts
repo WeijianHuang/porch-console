@@ -11,6 +11,7 @@ import type {
   QueueDetail,
   QueueRef,
   QueueView,
+  ReorderQueueStaffRequest,
   Staff,
   StaffDetail,
   StaffRef,
@@ -36,6 +37,10 @@ export const queuesApi = {
   staffOfQueue: (shopId: string, queueId: string) =>
     api.get<ApiEnvelope<StaffRef[]>>(
       `${base(shopId)}/queues/${encodeURIComponent(queueId)}/staff`, { shopId },
+    ),
+  reorderStaff: (shopId: string, queueId: string, body: ReorderQueueStaffRequest) =>
+    api.put<ApiEnvelope<QueueDetail>>(
+      `${base(shopId)}/queues/${encodeURIComponent(queueId)}/staff/order`, body, { shopId },
     ),
   assign: (shopId: string, queueId: string, staffId: string) =>
     api.put(

@@ -148,6 +148,8 @@ export interface QueueView extends Queue {
 export interface StaffRef {
   public_id: string
   display_name: string
+  duty_status: 'on' | 'off' | string
+  position: number
 }
 
 export interface QueueRef {
@@ -165,6 +167,7 @@ export interface Staff {
   code: string
   display_name: string
   status: string
+  duty_status: 'on' | 'off' | string
   version: number
   created_at: string
   updated_at: string
@@ -194,5 +197,12 @@ export interface CreateStaffRequest {
 export interface UpdateStaffRequest {
   display_name?: string
   status?: 'active' | 'inactive'
+  duty_status?: 'on' | 'off'
+  version: number
+}
+
+/** Full ordered member list; never adds or removes members (ADR-0010). */
+export interface ReorderQueueStaffRequest {
+  staff_ids: string[]
   version: number
 }
