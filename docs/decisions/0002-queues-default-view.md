@@ -11,7 +11,7 @@
 ## 决策
 
 1. **默认路由**：`/` 与登录后落地由 `/shops` 改为 `/queues`；侧边栏第一项为「队列」，第二项为「服务人员」。
-2. **队列页**：按 `currentShopId` 拉取 `GET /shops/{id}/queues`，按 `seq` 升序展示序号、名称、服务人员数量；可新建（序号 + 名称，序号正整数、店内唯一）；「管理」弹窗勾选本店服务人员，`PUT / DELETE /queues/{queueId}/staff/{staffId}` 分配/移出。
+2. **队列页**：按 `currentShopId` 拉取 `GET /shops/{id}/queues`，按 `seq` 升序以**横向看板**展示——每个队列是一列，列头显示圆形序号、名称、状态与服务人员数量；列内服务人员以**小卡片**逐个呈现（头像首字 + 姓名 + 工号，工号仅在已取得本店服务人员列表时显示）。不再用纵向表格列表。可新建（序号 + 名称，序号正整数、店内唯一）；列尾「管理」弹窗勾选本店服务人员，`PUT / DELETE /queues/{queueId}/staff/{staffId}` 分配/移出。每列详情按 `GET /shops/{id}/queues/{queueId}` 拉取，query key 含 `current_shop_id`，分配变更后同店队列详情一并失效重取。
 3. **服务人员页**：`GET / POST /staff` 建档与列表；详情 `GET /staff/{id}` 展示该人所在的多个队列（后端按 `queue_staff` 折叠）。
 4. **单店上下文不变**：所有新端点经统一 client 带 `X-Shop-Id`，写操作带 `Idempotency-Key`；query key 含 `current_shop_id`，切换门店走既有「取消在途 + 失效 shop-scope 缓存 + 重拉权限」协议。
 5. **权限**：写操作按 `queue.write` 显示入口，只读用户看不到新建 / 分配按钮；菜单渲染仍只依据 `/me/permissions`，不作授权依据。

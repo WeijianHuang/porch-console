@@ -14,7 +14,7 @@ export default function LoginPage() {
   const onFinish = async (values: LoginForm) => {
     try {
       await login(values.login.trim(), values.password)
-      await navigate('/shops', { replace: true })
+      await navigate('/queues', { replace: true })
     } catch (error) {
       message.error((error as Error).message || '登录失败，请稍后重试')
     }
