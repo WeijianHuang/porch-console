@@ -12,7 +12,7 @@
 ## 开发流程
 
 1. Fork 后从 `main` 建分支，命名 `feat/xxx`、`fix/xxx`、`docs/xxx`。
-2. 本地配置：`cp .env.example .env`，按框架调整变量名前缀；`.env` 不提交。
+2. 本地配置：`cp .env.example .env`（`VITE_API_BASE_URL` 指向后端），`npm install`；`.env` 不提交。提交前跑 `npm run lint`、`npm run typecheck`、`npm test`、`npm run build`。
 3. 提交信息遵循 [Conventional Commits](https://www.conventionalcommits.org/)。
 4. PR 里附上改动前后的界面截图（UI 改动必填）。
 5. 提交前自检：无 `.env`、无密钥、无真实经营数据。
@@ -26,7 +26,8 @@
 - 切换门店后：取消在途单店请求（或丢弃旧门店响应）、按 `(user_id, current_shop_id, query_key)` 失效并重取全部派生查询与缓存、重新拉取权限；跨店视图不随切换变化（后端 ADR-0006）。
 - 每个单店请求由 API 客户端统一注入 `X-Shop-Id`；切换器选项只来自 `/me/shops`，不信任本地伪造或 URL 传入的门店 ID；当前门店可存 localStorage（非令牌、非权限依据），刷新后用 `/me/shops` 复核，被撤销时回退到 `default_shop_id`。
 - 跨店视图的可见门店集合以后端返回为准，不信任本地传入的门店 ID；不引入门店组 / 店群、分组切换器或按组汇总（后端 ADR-0005）。
-- 框架、API 客户端、组件库与 E2E 选型**由本仓独立决定**（后端 ADR-0007 确认归属；NQ-14 已由 ADR-0008 收口：以既有内部前端工程实践为依据，工程名称不写入公开仓库）：后端只给 REST + OpenAPI、不做 BFF；前端不假设会话粘滞或服务端本地状态，API Base URL 只来自环境变量，后端多副本部署也不改变任何交互约定。
+- 技术栈由 [ADR-0001](docs/decisions/0001-frontend-stack-and-r1-scope.md) 定稿：React + TypeScript + Vite + TanStack Query + React Router + Ant Design + Zustand + Vitest；后端只给 REST + OpenAPI、不做 BFF；前端不假设会话粘滞或服务端本地状态，API Base URL 只来自 `VITE_API_BASE_URL`，后端多副本部署也不改变任何交互约定。
+- R1 只做登录、门店切换、门店列表/设置与商品目录；会员、单据、库存、报表、导出属后续阶段，不提前预留调用入口。API 类型先手写自后端冻结契约，待 `api/openapi.yaml` 产出后切生成器。
 - 后端暂不读写分离、不做跨店自动清分（ADR-0007）：不做「刷新直到查到」的复制延迟补偿 UI，也不提供结算 / 清分入口；跨店差额只在按店分组的报表呈现。
 - 若提供审计日志查询视图：超出保留期必须按后端冻结契约显示「超出保留期」提示（`400 AUDIT_RETENTION_WINDOW_EXCEEDED` + `earliest_queryable_at`），**不能渲染成空态、不能静默裁剪起始时间**；保留天数由运维配置，前端不提供调整入口，也不预留外部服务回调页（后端 ADR-0007 / ADR-0008，`design/08` §4）。
 - 后端 `docs/design/00`–`09` 与 ADR-0001–0008 已冻结：接口契约变更须走后端设计变更或新 ADR，并同步本仓文档与类型定义；前端不得在页面里另造金额、时区、门店范围或错误重试口径。

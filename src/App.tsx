@@ -1,0 +1,74 @@
+import { useEffect, type ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Spin } from 'antd'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import AppShell from './components/AppShell'
+import CatalogPage from './pages/CatalogPage'
+import LoginPage from './pages/LoginPage'
+import NotFoundPage from './pages/NotFoundPage'
+import ShopSettingsPage from './pages/ShopSettingsPage'
+import ShopsPage from './pages/ShopsPage'
+import { useAuthStore } from './stores/authStore'
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false, refetchOnWindowFocus: false, staleTime: 10_000 },
+  },
+})
+
+function Protected({ children }: { children: ReactNode }) {
+  const status = useAuthStore((state) => state.status)
+  return status === 'authenticated' ? <>{children}</> : <Navigate to="/login" replace />
+}
+
+function Guest({ children }: { children: ReactNode }) {
+  const status = useAuthStore((state) => state.status)
+  return status === 'authenticated' ? <Navigate to="/shops" replace /> : <>{children}</>
+}
+
+export default function App() {
+  const status = useAuthStore((state) => state.status)
+  const bootstrap = useAuthStore((state) => state.bootstrap)
+
+  useEffect(() => {
+    void bootstrap()
+  }, [bootstrap])
+
+  if (status === 'loading') {
+    return (
+      <div className="boot-screen">
+        <Spin size="large" tip="正在恢复会话…" />
+      </div>
+    )
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              <Guest>
+                <LoginPage />
+              </Guest>
+            }
+          />
+          <Route
+            element={
+              <Protected>
+                <AppShell />
+              </Protected>
+            }
+          >
+            <Route path="/shops" element={<ShopsPage />} />
+            <Route path="/shops/:shopId/settings" element={<ShopSettingsPage />} />
+            <Route path="/catalog" element={<CatalogPage />} />
+          </Route>
+          <Route path="/" element={<Navigate to="/shops" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
+  )
+}

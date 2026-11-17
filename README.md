@@ -4,7 +4,7 @@
 
 Porch OS（[porch-os](https://github.com/WeijianHuang/porch-os)）的前端控制台：面向小微门店经营者的多店后台，负责门店切换、开单收银、会员、库存与报表。
 
-**状态：早期设计阶段，后端详细设计已冻结。** 本仓库目前只有工程约定，尚无可运行代码；框架与 API 客户端的决策权归本仓，选型依据既有内部前端工程（待重构）的实践确定，工程名称不在公开仓库记录。
+**状态：R1 前端骨架已实现（2026-11-17）。** 技术栈已由 [ADR-0001](docs/decisions/0001-frontend-stack-and-r1-scope.md) 定稿：全新技术栈 React + TypeScript + Vite + TanStack Query + React Router + Ant Design + Zustand + Vitest；与既有内部工程零源码复用，工程名称不写入公开仓库。
 
 License: MIT · 语言：中文文档（发布前补英文版）
 
@@ -35,19 +35,19 @@ Porch Console 是 Porch OS 的多店后台控制台，是店长和店员每天�
 
 Porch Console is the web console for Porch OS — the screen shop owners and staff open every day. One user can manage several shops (ADR-0006): after login the backend returns the visible shops and a default, and the switcher lets the user pick the active shop. The active shop is a request-time context, not an authorization source: every single-shop request carries it explicitly, and the backend validates it against `user_shops` on every call. Switching is client-side only (no backend endpoint): it cancels in-flight requests, invalidates cached queries keyed by the active shop and refreshes permissions, while cross-shop views are driven by the set of shops the backend says you can see and are unaffected by the switch. It covers dashboards, catalog, checkout, members, reports and staff permissions, with shared conventions for error mapping, token refresh, loading, empty and network-unavailable states. There is no shop-group concept: cross-shop views select shops explicitly from the set the backend says you can see (ADR-0005). Offline checkout, printing, currency/timezone pickers and shop groups are explicitly out of scope (ADR-0004 / ADR-0005): the console shows one currency (CNY) and one timezone (UTC+8), and a network failure never turns into a locally queued order. ADR-0007 closes the backend's remaining open questions: no external integrations in R1, a Docker deployment with two API and two worker replicas and no read replicas, no automatic cross-shop settlement, and audit logs retained for a configurable 30 days — an audit query beyond that window must say so explicitly instead of rendering an empty state. ADR-0008 freezes the backend detailed design and fixes a Docker 2+2 runtime baseline; such an out-of-window query returns 400 AUDIT_RETENTION_WINDOW_EXCEEDED together with the earliest queryable timestamp.
 
-The name is deliberately neutral: adding a staff app, an owner mobile view or a customer mini program later will not require a rename. The concrete framework and API client are decided by this repository following its existing internal frontend practice (NQ-14, ADR-0008); ADR-0007 confirms this repository owns that choice and the backend provides REST + OpenAPI only. The internal project name is deliberately not recorded in this public repository. This repository currently fixes the interaction and engineering conventions.
+The name is deliberately neutral: adding a staff app, an owner mobile view or a customer mini program later will not require a rename. The concrete stack is now fixed by ADR-0001: React + TypeScript + Vite + TanStack Query + React Router + Ant Design + Zustand + Vitest, with no source reuse from the internal project (NQ-14, ADR-0008); ADR-0007 confirms this repository owns that choice and the backend provides REST + OpenAPI only. The internal project name is deliberately not recorded in this public repository. R1 implements login, shop switching, shop list/settings and the catalog.
 
 ## 核心视图（规划）
 
 | 视图 | 说明 |
 |---|---|
 | 门店上下文 | 全局门店切换器（选项只来自 `/me/shops`，一个用户可有多间门店）；单店视图与跨店汇总视图显式区分，切换不影响跨店范围 |
-| 经营看板 | 今日/区间关键指标，按店对比 |
-| 商品与服务 | 统一目录 + 按店价格、库存、上下架覆盖 |
-| 开单收银 | 单据绑定门店与操作人，提交幂等 |
-| 会员 | 跨店档案、余额与消费记录 |
-| 报表 | 单店明细、跨店汇总（按后端返回的可见门店集合选择门店，不设门店组），导出走流式下载 |
-| 权限与店员 | 角色配置、门店可见范围 |
+| 经营看板 | 今日/区间关键指标，按店对比（R2，后端接口未提供） |
+| 商品与服务 | 统一目录的列表/新建/编辑（R1）；按店价格与库存覆盖属 R2 |
+| 开单收银 | 单据绑定门店与操作人，提交幂等（R2，后端端点未实现） |
+| 会员 | 跨店档案、余额与消费记录（R2，不在 R1 页面范围） |
+| 报表 | 单店明细、跨店汇总与导出（R3，不在 R1 页面范围） |
+| 权限与店员 | 角色配置、门店可见范围（R2；R1 仅按 `/me/permissions` 控制页面操作） |
 
 ## 多店交互约定
 
@@ -90,44 +90,47 @@ The name is deliberately neutral: adding a staff app, an owner mobile view or a 
 
 | 项目 | 状态 |
 |---|---|
-| 前端框架与构建工具 | 由本仓按既有内部前端工程实践确定并记录 |
-| API 客户端方案（类型化 fetch / React Query / OpenAPI 生成 / tRPC） | 由本仓按同一依据确定 |
-| 状态管理与缓存失效策略 | 由本仓按同一依据确定 |
-| 组件库、国际化、主题 | 由本仓按同一依据确定 |
-| 实时能力（轮询 / SSE / WebSocket） | 由本仓按同一依据确定 |
-| 测试与 E2E 工具 | 由本仓按同一依据确定 |
+| 前端框架与构建工具 | **已定（ADR-0001）**：React 19 + TypeScript 5.9 + Vite 8 + ESLint 10 |
+| API 客户端方案 | **已定**：统一 typed fetch + TanStack Query v5；类型先手写自后端契约，待 `openapi.yaml` 产出后切生成器（FQ-02） |
+| 状态管理与缓存失效策略 | **已定**：Zustand 存会话/门店上下文；查询键含 `current_shop_id`，切换即失效重取 |
+| 组件库、国际化、主题 | **已定**：Ant Design、浅色主题、中文文案；不做运行时语言切换 |
+| 实时能力 | **R1 不引入**：导出任务状态手动刷新，E2E 与实时能力放 R2 |
+| 测试与 E2E 工具 | **已定**：Vitest 单测 + lint/typecheck/build 门禁；E2E 放 R2 |
 
-骨架阶段刻意不写入任何框架相关目录，也不把框架名放进仓库名；内部工程名称同样不出现在公开仓库。后端详细设计已冻结，选型落地后按 `error.retryable` 与既定错误码表对接即可。
+技术栈已落地到 `src/`；后端详细设计仍冻结，前端按 `error.retryable` 与既定错误码表对接。主流栈对比与取舍见 [ADR-0001](docs/decisions/0001-frontend-stack-and-r1-scope.md)。
 
 ## 快速开始
 
 ```bash
 git clone https://github.com/WeijianHuang/porch-console.git
 cd porch-console
-cp .env.example .env   # 按框架调整变量名前缀，.env 不提交
+cp .env.example .env        # VITE_API_BASE_URL 留空即走 Vite 代理（后端 8080）
+npm install
+npm run dev                 # http://127.0.0.1:5173
 ```
 
-`.env.example` 中 `API_BASE_URL` 指向本地 `porch-os`；具体前缀按框架调整（Vite 用 `VITE_`，Next.js 用 `NEXT_PUBLIC_`）。
+后端先按 [porch-os 快速开始](https://github.com/WeijianHuang/porch-os#r1-quick-start) 启动（默认 8080）。门禁命令：`npm run lint`、`npm run typecheck`、`npm test`、`npm run build`。
 
 ## 仓库结构
 
 ```
 .github/           CI 工作流与 PR 模板
-.env.example       配置占位（仅示例值）
+docs/              前端决策记录与已关闭的待确认清单
+src/               前端源码（api / components / pages / stores / shop / utils）
+.env.example       配置占位（VITE_ 前缀）
+index.html         Vite 入口
 CONTRIBUTING.md    贡献流程
 CHANGELOG.md       变更记录
 ```
 
-源码目录待框架确定后添加。
-
 ## 本地联调（当前）
 
-后端 `porch-os` 已选定 PostgreSQL 18.7，本地数据库由该仓库的 Compose 启动，步骤见 [后端本地开发环境](https://github.com/WeijianHuang/porch-os/blob/main/docs/LOCAL-DEV.md)。前端只通过 `API_BASE_URL` 访问后端 HTTP 接口：
+后端 `porch-os` 已选定 PostgreSQL 18.7，本地数据库由该仓库的 Compose 启动，步骤见 [后端本地开发环境](https://github.com/WeijianHuang/porch-os/blob/main/docs/LOCAL-DEV.md)。前端只通过 `VITE_API_BASE_URL` 访问后端 HTTP 接口；本地留空走 Vite 同源代理，不依赖后端 CORS 配置：
 
 - **前端不直连数据库**，本仓库不存放数据库地址、账号或口令。
 - 数据库属于后端实现细节，不影响前端接口契约；接口契约为 **REST + OpenAPI**，见 [后端接口设计](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/03-api-design.md) 与 [详细设计总览](https://github.com/WeijianHuang/porch-os/blob/main/docs/design/00-overview.md)。
 - 后端范围基线已锁定（[ADR-0004](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0004-scope-baseline.md)）：单币种 CNY、统一 UTC+8、暂不归档、不打印、不离线收银；前端据此不预留币种/时区选择、打印与离线提交入口。后端 [ADR-0005](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0005-no-shop-groups.md) 取消门店组，前端同样不预留分组管理与按组汇总入口。后端 [ADR-0006](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0006-user-shops-and-current-shop.md) 明确一个用户可拥有多间门店、当前门店可切换：前端需按 `/me/shops` 渲染切换器、为每个单店请求注入 `X-Shop-Id`，且不预留服务端切换端点。
-- 后端 R1 已有**可运行接口**（`cmd/api`，启动 `go run ./cmd/api` 后 `/health`、`/ready`、`/api/v1/auth/*`、`/me*`、`/shops`、`/catalog-*`、`/members` 可用），本地按[后端快速开始](https://github.com/WeijianHuang/porch-os#r1-quick-start)即可联调；单据 / 库存 / 报表 / 导出接口属 R2/R3，尚未实现。`.env.example` 的 `API_BASE_URL` 指向本地 8080。接口契约已由后端 [ADR-0008](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0008-design-freeze-and-nq-resolutions.md) **冻结**；后续变更走设计变更或新 ADR，并需两仓同步。
+- 后端 R1 已有**可运行接口**（`cmd/api`，启动 `go run ./cmd/api` 后 `/health`、`/ready`、`/api/v1/auth/*`、`/me*`、`/shops`、`/catalog-*`、`/members` 可用），本地按[后端快速开始](https://github.com/WeijianHuang/porch-os#r1-quick-start)即可联调；单据 / 库存 / 报表 / 导出接口属 R2/R3，尚未实现。`.env.example` 的 `VITE_API_BASE_URL` 留空即走本地 8080 的同源代理。接口契约已由后端 [ADR-0008](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0008-design-freeze-and-nq-resolutions.md) **冻结**；后续变更走设计变更或新 ADR，并需两仓同步。
 
 ## 配套仓库
 

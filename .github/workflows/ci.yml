@@ -1,4 +1,4 @@
-name: skeleton-check
+name: frontend-check
 
 on:
   push:
@@ -6,21 +6,32 @@ on:
   pull_request:
 
 jobs:
-  skeleton:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # TODO: 框架确定后，把本 job 替换为真实的 lint / typecheck / test / build。
-      # 在此之前先保证骨架完整，并阻止密钥与真实数据误入库。
-      - name: Required files
-        run: |
-          test -f README.md
-          test -f LICENSE
-          test -f .gitignore
-          test -f .env.example
-          test -f CONTRIBUTING.md
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
 
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # 后端提交 api/openapi.yaml 后在此追加「重新生成无 diff」门禁（FQ-02/FQ-05）。
       - name: No secrets or real data committed
         run: |
           matches=$(git ls-files \

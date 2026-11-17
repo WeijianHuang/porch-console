@@ -6,6 +6,11 @@
 
 ### 新增
 
+- **`docs/decisions/0001-frontend-stack-and-r1-scope.md`**：落定 FQ-01–16——采用全新技术栈（含主流方案对比）、API 类型来自后端契约、令牌按 A 方案、R1 页面范围、测试门禁与内部工程复用边界；`docs/OPEN-QUESTIONS.md` 转为已关闭的决议索引。
+- **R1 前端骨架**：React 19 + TypeScript 5.9 + Vite 8 + TanStack Query v5 + React Router v7 + Ant Design + Zustand + Vitest；实现登录、全局门店切换、门店列表/设置、商品目录（新建/编辑）；统一 API client（typed fetch、`X-Shop-Id` 注入、写操作 `Idempotency-Key`、按 `error.retryable` 重试、401 刷新一次）。
+- `src/api/types.ts` 为按后端冻结契约手写的临时类型层，待后端 `api/openapi.yaml` 产出后替换生成器；查询键含 `current_shop_id`，切换门店先取消在途请求、清理门店作用域缓存并重拉 `/me/permissions`。
+- CI 从骨架检查替换为 `npm ci → lint → typecheck → unit → build` 门禁，并保留密钥/真实数据扫描。
+
 - `docs/OPEN-QUESTIONS.md`：**前端待确认清单 FQ-01–16**——FQ-01–06 阻塞开工（技术栈与语言、API 类型来源、刷新令牌存储、R1 页面范围、测试/CI 门禁、内部工程复用边界），FQ-07–16 给默认口径可「按建议」推进；附「无需再确认」与「明确延后」边界。
 - 对齐后端 [ADR-0008](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0008-design-freeze-and-nq-resolutions.md)：记录「后端详细设计已冻结」「NQ-14 前端选型依据」「审计超期查询错误契约」与新增的 `design/07`–`09` 分册入口。
 - 仓库骨架：README、MIT 许可证、环境变量占位、CI 骨架检查、PR 模板、贡献指南。
@@ -15,6 +20,7 @@
 
 ### 变更
 
+- **本地联调免 CORS 配置**：Vite 开发代理把 `/api` 转发到本地后端 8080，`VITE_API_BASE_URL` 留空即走同源；生产环境仍可填完整 API 地址。
 - **订正过期事实**：「本地联调」原先写「后端尚未提供可运行接口」，现改为后端 R1 已可运行（`cmd/api`：auth / me / shops / catalog / members / health / ready），单据 / 库存 / 报表 / 导出属 R2/R3；英文 About 的部署描述由「编排平台」同步为 Docker `api` × 2 / `worker` × 2；README 增加待确认清单入口。
 - 待定决策章节改为「前端选型（本仓决策）」：决策权仍归本仓，选型以既有内部前端工程（待重构）实践为依据；**内部工程名称与源码不写入公开仓库**。
 - 审计超期查询由「待后端确认」改为已冻结契约：`400 AUDIT_RETENTION_WINDOW_EXCEEDED` + `earliest_queryable_at`，不得渲染空态、不得静默裁剪起始时间；不提供专用审计导出端点，窗口内导出复用统一导出任务。

@@ -1,6 +1,18 @@
 # Porch Console · 待确认清单（FQ-01–16）
 
-> 状态：**待确认**（2026-11-17）。后端详细设计已由 ADR-0008 冻结；本清单只列**本仓自己的决策**，不含后端契约问题。按编号答复即可；答复后在本仓落决策记录并关闭对应条目，FQ 编号不复用。
+> 状态：**已关闭（2026-11-17）**。全部答复见 [ADR-0001](decisions/0001-frontend-stack-and-r1-scope.md)，FQ 编号不复用。本文件保留为决策索引与理由备查，不再作为待办清单。
+
+## 决议速查
+
+| 编号 | 决议 |
+|---|---|
+| FQ-01 | **全新技术栈**：React + TypeScript + Vite + TanStack Query + React Router + Ant Design + Zustand + Vitest；主流方案对比见 ADR-0001 |
+| FQ-02 | A：类型来自后端冻结契约；先手写 `src/api/types.ts`，后端 `openapi.yaml` 产出后切生成器 |
+| FQ-03 | A：access token 内存、refresh token sessionStorage；401 刷新一次 |
+| FQ-04 | 登录 + 门店切换 + 门店列表/设置 + 商品目录；会员/单据/库存/报表/导出不在 R1 |
+| FQ-05 | A：lint + typecheck + unit + build；契约校验待后端 OpenAPI，E2E 放 R2 |
+| FQ-06 | 行业通用方式：不复制内部源码，依赖走公开 npm 包并核对许可，公开仓保持脱钩 |
+| FQ-07–16 | 全部按建议执行，逐条口径见 ADR-0001 §2 第 7 条 |
 
 ## 一、阻塞开工（需要明确答复）
 

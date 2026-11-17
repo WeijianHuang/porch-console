@@ -33,6 +33,13 @@ Closes #
 - [ ] 涉及审计日志查询时，超出保留期有明确提示而非空态；未提供保留天数调整入口（后端 ADR-0007）
 - [ ] 框架 / API 客户端 / 组件库选型在本仓范围内，未要求后端提供框架专属接口或 BFF（后端 ADR-0007）
 
+## 工程门禁与范围（ADR-0001）
+
+- [ ] `npm run lint`、`npm run typecheck`、`npm test`、`npm run build` 全部通过
+- [ ] 新类型仍来自后端冻结契约；未擅自增加接口字段或在前端另造业务口径
+- [ ] 涉及单店请求时 API client 自动带 `X-Shop-Id`；写操作带 `Idempotency-Key`；重试依据 `error.retryable`
+- [ ] 未把会员 / 单据 / 库存 / 报表 / 导出页面带入 R1
+
 ## 其他
 
 - [ ] 接口形状变化已同步 `porch-os`
