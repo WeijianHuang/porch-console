@@ -1,4 +1,5 @@
-import { message, Select, Tag, Tooltip } from 'antd'
+import { ShopOutlined } from '@ant-design/icons'
+import { message, Select, Tooltip } from 'antd'
 import { useQueryClient } from '@tanstack/react-query'
 import { authApi } from '../api/auth'
 import { abortSingleShopRequests } from '../api/client'
@@ -30,16 +31,17 @@ export default function ShopSwitcher() {
   }
 
   if (available.length === 0) {
-    return <Tag color="warning">暂无可用门店</Tag>
+    return <span className="pill warn">暂无可用门店</span>
   }
 
   return (
     <Tooltip title="当前门店只影响单店视图，跨店数据不受影响">
       <Select
+        className="header-shop"
         aria-label="当前门店"
+        prefix={<ShopOutlined />}
         value={currentShopId ?? undefined}
         placeholder="选择门店"
-        style={{ width: 220 }}
         onChange={(id) => void handleChange(id)}
         options={available.map((shop) => ({ value: shop.public_id, label: shop.name }))}
       />

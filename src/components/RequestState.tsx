@@ -14,21 +14,23 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   const detail = error as Partial<ApiError> | undefined
   return (
     <div className="state-block">
-      <Alert
-        type="error"
-        showIcon
-        message={detail?.message ?? '加载失败'}
-        description={
-          <div>
-            {detail?.code ? <span className="muted">错误码：{detail.code}</span> : null}
-            {onRetry ? (
-              <Button size="small" type="link" onClick={onRetry}>
-                重试
-              </Button>
-            ) : null}
-          </div>
-        }
-      />
+      <div className="state-panel">
+        <Alert
+          type="error"
+          showIcon
+          message={detail?.message ?? '加载失败'}
+          description={
+            <div>
+              {detail?.code ? <span className="muted">错误码：{detail.code}</span> : null}
+              {onRetry ? (
+                <Button size="small" type="link" onClick={onRetry}>
+                  重试
+                </Button>
+              ) : null}
+            </div>
+          }
+        />
+      </div>
     </div>
   )
 }
@@ -36,7 +38,9 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
 export function EmptyHint({ children }: { children: ReactNode }) {
   return (
     <div className="state-block">
-      <Empty description={children} />
+      <div className="state-panel">
+        <Empty description={children} />
+      </div>
     </div>
   )
 }

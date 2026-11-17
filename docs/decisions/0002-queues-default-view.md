@@ -15,6 +15,7 @@
 3. **服务人员页**：`GET / POST /staff` 建档与列表；详情 `GET /staff/{id}` 展示该人所在的多个队列（后端按 `queue_staff` 折叠）。列表显示在岗 / 下班标记，写权限用户可切换（`PATCH /staff/{id}` 带 `duty_status` 与 `version`）；下班人员仍在队列卡片中，仅弱化展示，不隐藏、不计入可服务筛选。
 4. **单店上下文不变**：所有新端点经统一 client 带 `X-Shop-Id`，写操作带 `Idempotency-Key`；query key 含 `current_shop_id`，切换门店走既有「取消在途 + 失效 shop-scope 缓存 + 重拉权限」协议。
 5. **权限**：写操作按 `queue.write` 显示入口，只读用户看不到新建 / 分配按钮；菜单渲染仍只依据 `/me/permissions`，不作授权依据。
+6. **视觉呈现（2026-11-17 补充）**：视觉样式由 `src/theme.ts`（Ant Design token）与 `src/styles.css`（CSS 设计令牌）统一定义；应用外壳为深色侧栏 + 吸顶顶栏，各业务页共用 `PageHeader` 与统计条，队列用横向泳道、人员与门店用卡片网格。此项只改变呈现，不新增端点、不改权限 / 门店上下文 / 幂等与缓存协议。
 
 ## 理由
 

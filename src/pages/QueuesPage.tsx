@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined, PlusOutlined, TeamOutlined,
+} from '@ant-design/icons'
+import {
   Avatar, Button, Card, Checkbox, Form, Input, InputNumber, Modal,
-  Space, Tag, Typography, message,
+  Space, Typography, message,
 } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { queryKeys } from '../api/keys'
 import { queuesApi, staffApi } from '../api/queues'
 import type { CreateQueueRequest, QueueDetail, QueueView, Staff } from '../api/types'
+import PageHeader from '../components/PageHeader'
 import { EmptyHint, ErrorState, PageLoading } from '../components/RequestState'
 import { hasPermission, useAuthStore } from '../stores/authStore'
 import { useShopStore } from '../stores/shopStore'
@@ -17,6 +21,8 @@ interface QueueForm {
   seq: number
   name: string
 }
+
+const laneAccents = ['#2f7d5b', '#3f8f9e', '#d99a4e', '#7c6bb0', '#c6697b']
 
 export default function QueuesPage() {
   const navigate = useNavigate()
@@ -110,79 +116,130 @@ export default function QueuesPage() {
   const selectedIndex = queueViews.findIndex((queue) => queue.public_id === selectedQueueId)
   const detail = selectedIndex >= 0 ? detailQueries[selectedIndex]?.data?.data ?? null : null
 
+  const assigned = detailQueries.flatMap((query) => query.data?.data?.staff ?? [])
+  const onDuty = assigned.filter((member) => member.duty_status === 'on').length
+
   return (
-    <Card
-      title={<Typography.Title level={4}>队列看板（当前门店）</Typography.Title>}
-      extra={
-        <Space>
-          <Button onClick={() => navigate('/staff')}>服务人员</Button>
-          {canWrite ? (
-            <Button type="primary" onClick={openCreate}>新建队列</Button>
-          ) : null}
-        </Space>
-      }
-    >
-      {queueViews.length === 0 ? (
-        <EmptyHint>该门店还没有队列{canWrite ? '，点击右上角新建' : ''}</EmptyHint>
-      ) : (
-        <div className="queue-board">
-          {queueViews.map((queue, index) => {
-            const detailQuery = detailQueries[index]
-            return (
-              <QueueLane
-                key={queue.public_id}
-                queue={queue}
-                detail={detailQuery?.data?.data}
-                loading={detailQuery?.isPending ?? false}
-                error={detailQuery?.isError ?? false}
-                staffByPublicId={staffByPublicId}
-                canWrite={canWrite}
-                reordering={reorder.isPending}
-                onSubmitOrder={submitOrder}
-                onManage={() => setSelectedQueueId(queue.public_id)}
-              />
-            )
-          })}
-        </div>
-      )}
-
-      <Modal
-        title="新建队列"
-        open={open}
-        onCancel={() => setOpen(false)}
-        onOk={() => form.submit()}
-        confirmLoading={createQueue.isPending}
-        okText="创建"
-        cancelText="取消"
-      >
-        <Form form={form} layout="vertical" onFinish={submit}>
-          <Form.Item
-            name="seq"
-            label="序号"
-            rules={[{ required: true, message: '请输入序号' }]}
-            extra="同一门店内序号唯一，从 1 开始"
-          >
-            <InputNumber min={1} precision={0} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item
-            name="name"
-            label="名称"
-            rules={[{ required: true, message: '请输入名称' }, { whitespace: true, message: '名称不能为空' }]}
-          >
-            <Input maxLength={60} placeholder="例如：一号队列" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <QueueAssignModal
-        shopId={shopId}
-        queue={detail}
-        staff={staff}
-        canWrite={canWrite}
-        onClose={() => setSelectedQueueId(null)}
-        onChanged={invalidate}
+    <div className="page">
+      <PageHeader
+        eyebrow="Workspace / Queues"
+        title="队列看板"
+        description="当前门店的队列以横向看板呈现；拖动卡片或使用箭头调整队列内顺序。"
+        actions={
+          <Space>
+            <Button icon={<TeamOutlined />} onClick={() => navigate('/staff')}>
+              服务人员
+            </Button>
+            {canWrite ? (
+              <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                新建队列
+              </Button>
+            ) : null}
+          </Space>
+        }
       />
-    </Card>
+
+      <div className="stat-strip">
+        <div className="stat-tile">
+          <span className="stat-icon"><CalendarOutlined /></span>
+          <div className="stat-text">
+            <div className="stat-label">队列数量</div>
+            <div className="stat-value">{queueViews.length}</div>
+          </div>
+        </div>
+        <div className="stat-tile">
+          <span className="stat-icon slate"><TeamOutlined /></span>
+          <div className="stat-text">
+            <div className="stat-label">已分配人员</div>
+            <div className="stat-value">{assigned.length}</div>
+          </div>
+        </div>
+        <div className="stat-tile">
+          <span className="stat-icon"><CheckCircleOutlined /></span>
+          <div className="stat-text">
+            <div className="stat-label">在岗</div>
+            <div className="stat-value">{onDuty}</div>
+          </div>
+        </div>
+        <div className="stat-tile">
+          <span className="stat-icon amber"><ClockCircleOutlined /></span>
+          <div className="stat-text">
+            <div className="stat-label">下班</div>
+            <div className="stat-value">{assigned.length - onDuty}</div>
+          </div>
+        </div>
+      </div>
+
+      <Card className="panel">
+        {queueViews.length === 0 ? (
+          <EmptyHint>该门店还没有队列{canWrite ? '，点击右上角新建' : ''}</EmptyHint>
+        ) : (
+          <div className="queue-board">
+            {queueViews.map((queue, index) => {
+              const detailQuery = detailQueries[index]
+              return (
+                <QueueLane
+                  key={queue.public_id}
+                  queue={queue}
+                  detail={detailQuery?.data?.data}
+                  loading={detailQuery?.isPending ?? false}
+                  error={detailQuery?.isError ?? false}
+                  staffByPublicId={staffByPublicId}
+                  canWrite={canWrite}
+                  reordering={reorder.isPending}
+                  onSubmitOrder={submitOrder}
+                  onManage={() => setSelectedQueueId(queue.public_id)}
+                />
+              )
+            })}
+            {canWrite ? (
+              <button type="button" className="queue-lane queue-lane-add" onClick={openCreate}>
+                <span className="add-icon"><PlusOutlined /></span>
+                <strong>新建队列</strong>
+                <span>为当前门店添加一条队列</span>
+              </button>
+            ) : null}
+          </div>
+        )}
+
+        <Modal
+          title="新建队列"
+          open={open}
+          onCancel={() => setOpen(false)}
+          onOk={() => form.submit()}
+          confirmLoading={createQueue.isPending}
+          okText="创建"
+          cancelText="取消"
+        >
+          <Form form={form} layout="vertical" onFinish={submit}>
+            <Form.Item
+              name="seq"
+              label="序号"
+              rules={[{ required: true, message: '请输入序号' }]}
+              extra="同一门店内序号唯一，从 1 开始"
+            >
+              <InputNumber min={1} precision={0} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item
+              name="name"
+              label="名称"
+              rules={[{ required: true, message: '请输入名称' }, { whitespace: true, message: '名称不能为空' }]}
+            >
+              <Input maxLength={60} placeholder="例如：一号队列" />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        <QueueAssignModal
+          shopId={shopId}
+          queue={detail}
+          staff={staff}
+          canWrite={canWrite}
+          onClose={() => setSelectedQueueId(null)}
+          onChanged={invalidate}
+        />
+      </Card>
+    </div>
   )
 }
 
@@ -208,6 +265,7 @@ function QueueLane({
   }, [detail])
 
   const members = new Map(detail?.staff.map((s) => [s.public_id, s]) ?? [])
+  const accent = laneAccents[(queue.seq - 1) % laneAccents.length]
 
   const applyOrder = async (next: string[]) => {
     if (!detail || !canWrite) return
@@ -241,15 +299,21 @@ function QueueLane({
   }
 
   return (
-    <section className="queue-lane" aria-label={`队列 ${queue.seq} ${queue.name}`}>
+    <section
+      className="queue-lane"
+      style={{ '--lane-accent': accent } as CSSProperties}
+      aria-label={`队列 ${queue.seq} ${queue.name}`}
+    >
       <header className="queue-lane-head">
         <span className="queue-seq">{queue.seq}</span>
         <span className="queue-lane-title" title={queue.name}>{queue.name}</span>
-        {queue.status === 'active' ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>}
+        {queue.status === 'active' ? <span className="pill on">启用</span> : <span className="pill off">停用</span>}
       </header>
       <div className="queue-lane-meta">
-        <Tag color={queue.staff_count > 0 ? 'blue' : 'default'}>{queue.staff_count} 人</Tag>
-        {canWrite ? <Typography.Text type="secondary">拖动卡片或用箭头调整顺序</Typography.Text> : null}
+        <span className={`pill ${queue.staff_count > 0 ? 'plain' : 'off'}`}>
+          {queue.staff_count} 人在列
+        </span>
+        {canWrite ? <span className="queue-meta-hint">拖动卡片或用箭头调整顺序</span> : null}
       </div>
       <div className="queue-staff-list">
         {loading ? <div className="queue-lane-empty">服务人员加载中…</div> : null}
@@ -273,17 +337,20 @@ function QueueLane({
                 dropOn(staffId, event.dataTransfer.getData('text/plain'))
               }}
             >
-              {canWrite ? <span className="drag-handle" aria-hidden="true">≡</span> : null}
-              <Avatar size={32} style={{ backgroundColor: '#1677ff', flexShrink: 0 }}>
+              <span className="staff-position">{index + 1}</span>
+              <Avatar
+                size={32}
+                style={{ backgroundColor: member.duty_status === 'on' ? accent : '#b7c3bb', flexShrink: 0 }}
+              >
                 {member.display_name.slice(0, 1)}
               </Avatar>
               <div className="staff-card-body">
                 <div className="staff-card-name">{member.display_name}</div>
                 <div className="staff-card-meta">
-                  <Tag color={member.duty_status === 'on' ? 'blue' : 'default'}>
+                  <span className={`pill ${member.duty_status === 'on' ? 'on' : 'off'}`}>
                     {member.duty_status === 'on' ? '在岗' : '下班'}
-                  </Tag>
-                  {code ? <span className="staff-card-code">工号 {code}</span> : null}
+                  </span>
+                  {code ? <span className="staff-card-code">{code}</span> : null}
                 </div>
               </div>
               {canWrite ? (
@@ -315,6 +382,7 @@ function QueueLane({
         })}
       </div>
       <footer className="queue-lane-foot">
+        <span className="queue-lane-count">序号 {queue.seq} · {order.length} 人</span>
         <Button type="link" size="small" onClick={onManage}>管理</Button>
       </footer>
     </section>

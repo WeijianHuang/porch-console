@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Card, Form, Input, Modal, Select, Space, Table, Typography, message } from 'antd'
+import {
+  AppstoreOutlined, CheckCircleOutlined, ClockCircleOutlined, PlusOutlined,
+} from '@ant-design/icons'
+import { Button, Card, Form, Input, Modal, Select, Space, Table, message } from 'antd'
 import { catalogApi } from '../api/catalog'
 import { queryKeys } from '../api/keys'
 import type { CatalogItem } from '../api/types'
+import PageHeader from '../components/PageHeader'
 import { ErrorState, PageLoading } from '../components/RequestState'
 import { hasPermission, useAuthStore } from '../stores/authStore'
 import { formatUTC8 } from '../utils/datetime'
@@ -80,94 +84,149 @@ export default function CatalogPage() {
   if (isPending) return <PageLoading />
   if (error) return <ErrorState error={error} onRetry={() => void refetch()} />
 
+  const items = data?.data ?? []
+  const activeCount = items.filter((item) => item.active).length
+
   return (
-    <Card
-      title={<Typography.Title level={4}>商品目录</Typography.Title>}
-      extra={
-        canWrite ? (
-          <Button type="primary" onClick={openCreate}>
-            新建目录项
-          </Button>
-        ) : null
-      }
-    >
-      <Table<CatalogItem>
-        rowKey="public_id"
-        dataSource={data?.data ?? []}
-        pagination={false}
-        columns={[
-          { title: 'SKU', dataIndex: 'sku' },
-          { title: '名称', dataIndex: 'name' },
-          { title: '类型', dataIndex: 'type', render: (type: string) => (type === 'service' ? '服务' : '商品') },
-          { title: '基础价', dataIndex: 'base_price', render: (value: string) => formatCNY(value) },
-          { title: '状态', dataIndex: 'active', render: (active: boolean) => (active ? '上架' : '下架') },
-          {
-            title: '更新时间 (UTC+8)',
-            dataIndex: 'updated_at',
-            render: (value: string) => formatUTC8(value),
-          },
-          {
-            title: '操作',
-            key: 'actions',
-            render: (_: unknown, item: CatalogItem) =>
-              canWrite ? (
-                <Button type="link" onClick={() => openEdit(item)}>
-                  编辑
-                </Button>
-              ) : null,
-          },
-        ]}
+    <div className="page">
+      <PageHeader
+        eyebrow="Workspace / Catalog"
+        title="商品目录"
+        description="维护可在门店使用的商品与服务条目；所有金额均以 CNY 展示。"
+        actions={
+          canWrite ? (
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              新建目录项
+            </Button>
+          ) : null
+        }
       />
-      <Modal
-        title={editing ? '编辑目录项' : '新建目录项'}
-        open={open}
-        onCancel={() => setOpen(false)}
-        onOk={() => form.submit()}
-        destroyOnHidden
-      >
-        <Form<CatalogFormValues> form={form} layout="vertical" onFinish={(values) => void submit(values)}>
-          {!editing ? (
-            <>
-              <Form.Item label="SKU" name="sku" rules={[{ required: true, message: '请输入 SKU' }]}>
-                <Input />
-              </Form.Item>
-              <Form.Item label="类型" name="type">
-                <Select
-                  options={[
-                    { value: 'product', label: '商品' },
-                    { value: 'service', label: '服务' },
-                  ]}
-                />
-              </Form.Item>
-            </>
-          ) : null}
-          <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入名称' }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item
-            label="基础价"
-            name="base_price"
-            rules={[{ required: true, message: '请输入基础价' }]}
-          >
-            <Input placeholder="例如 19.90" />
-          </Form.Item>
-          {editing ? (
-            <Space>
-              <Form.Item label="上架" name="active">
-                <Select
-                  options={[
-                    { value: true, label: '上架' },
-                    { value: false, label: '下架' },
-                  ]}
-                />
-              </Form.Item>
-              <Form.Item label="版本（乐观锁）" name="version">
-                <Input disabled />
-              </Form.Item>
-            </Space>
-          ) : null}
-        </Form>
-      </Modal>
-    </Card>
+
+      <div className="stat-strip">
+        <div className="stat-tile">
+          <span className="stat-icon slate"><AppstoreOutlined /></span>
+          <div className="stat-text">
+            <div className="stat-label">目录条目</div>
+            <div className="stat-value">{items.length}</div>
+          </div>
+        </div>
+        <div className="stat-tile">
+          <span className="stat-icon"><CheckCircleOutlined /></span>
+          <div className="stat-text">
+            <div className="stat-label">已上架</div>
+            <div className="stat-value">{activeCount}</div>
+          </div>
+        </div>
+        <div className="stat-tile">
+          <span className="stat-icon amber"><ClockCircleOutlined /></span>
+          <div className="stat-text">
+            <div className="stat-label">已下架</div>
+            <div className="stat-value">{items.length - activeCount}</div>
+          </div>
+        </div>
+      </div>
+
+      <Card className="panel">
+        <Table<CatalogItem>
+          className="data-table"
+          rowKey="public_id"
+          dataSource={items}
+          pagination={false}
+          columns={[
+            { title: 'SKU', dataIndex: 'sku', className: 'cell-money' },
+            { title: '名称', dataIndex: 'name', className: 'cell-primary' },
+            {
+              title: '类型',
+              dataIndex: 'type',
+              width: 90,
+              render: (type: string) => (
+                <span className="pill plain">{type === 'service' ? '服务' : '商品'}</span>
+              ),
+            },
+            {
+              title: '基础价',
+              dataIndex: 'base_price',
+              width: 120,
+              align: 'right',
+              render: (value: string) => <span className="cell-money">{formatCNY(value)}</span>,
+            },
+            {
+              title: '状态',
+              dataIndex: 'active',
+              width: 100,
+              render: (active: boolean) => (
+                <span className={`pill ${active ? 'on' : 'off'}`}>{active ? '上架' : '下架'}</span>
+              ),
+            },
+            {
+              title: '更新时间 (UTC+8)',
+              dataIndex: 'updated_at',
+              width: 190,
+              render: (value: string) => <span className="muted">{formatUTC8(value)}</span>,
+            },
+            {
+              title: '操作',
+              key: 'actions',
+              width: 90,
+              render: (_: unknown, item: CatalogItem) =>
+                canWrite ? (
+                  <Button type="link" onClick={() => openEdit(item)}>编辑</Button>
+                ) : null,
+            },
+          ]}
+        />
+
+        <Modal
+          title={editing ? '编辑目录项' : '新建目录项'}
+          open={open}
+          onCancel={() => setOpen(false)}
+          onOk={() => form.submit()}
+          destroyOnHidden
+        >
+          <Form<CatalogFormValues> form={form} layout="vertical" onFinish={(values) => void submit(values)}>
+            {!editing ? (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Form.Item label="SKU" name="sku" rules={[{ required: true, message: '请输入 SKU' }]}>
+                  <Input />
+                </Form.Item>
+                <Form.Item label="类型" name="type">
+                  <Select
+                    options={[
+                      { value: 'product', label: '商品' },
+                      { value: 'service', label: '服务' },
+                    ]}
+                  />
+                </Form.Item>
+              </Space>
+            ) : null}
+            <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入名称' }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item
+              label="基础价"
+              name="base_price"
+              rules={[{ required: true, message: '请输入基础价' }]}
+            >
+              <Input placeholder="例如 19.90" />
+            </Form.Item>
+            {editing ? (
+              <Space>
+                <Form.Item label="上架" name="active">
+                  <Select
+                    options={[
+                      { value: true, label: '上架' },
+                      { value: false, label: '下架' },
+                    ]}
+                  />
+                </Form.Item>
+                <Form.Item label="版本（乐观锁）" name="version">
+                  <Input disabled />
+                </Form.Item>
+              </Space>
+            ) : null}
+          </Form>
+        </Modal>
+      </Card>
+    </div>
   )
 }
