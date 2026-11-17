@@ -4,6 +4,11 @@ export const queryKeys = {
   shop: (shopId: string) => ['shop-scope', shopId, 'detail'] as const,
   settings: (shopId: string) => ['shop-scope', shopId, 'settings'] as const,
   catalog: ['catalog', 'items'] as const,
+  queues: (shopId: string) => ['shop-scope', shopId, 'queues'] as const,
+  queue: (shopId: string, queueId: string) => ['shop-scope', shopId, 'queue', queueId] as const,
+  queueStaff: (shopId: string, queueId: string) => ['shop-scope', shopId, 'queue-staff', queueId] as const,
+  staff: (shopId: string) => ['shop-scope', shopId, 'staff'] as const,
+  staffDetail: (shopId: string, staffId: string) => ['shop-scope', shopId, 'staff', staffId] as const,
   permissions: ['identity', 'permissions'] as const,
 }
 

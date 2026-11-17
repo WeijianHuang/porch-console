@@ -6,6 +6,8 @@
 
 ### 新增
 
+- **队列与服务人员（对齐后端 ADR-0009 / design/10）**：主页默认路由改为 `/queues`；新增队列页（序号 + 名称、按 `seq` 排序、队列内服务人员勾选分配）与服务人员页（建档、查看每人所在多个队列）；`src/api/queues.ts` 对齐 `/queues` / `/staff` / `queues/{id}/staff` 端点，全部单店请求带 `X-Shop-Id`、写操作带 `Idempotency-Key`。新增 `queue.read` / `queue.write` 权限控制；`sortBySeq` 纯函数与单测。
+
 - **`docs/decisions/0001-frontend-stack-and-r1-scope.md`**：落定 FQ-01–16——采用全新技术栈（含主流方案对比）、API 类型来自后端契约、令牌按 A 方案、R1 页面范围、测试门禁与内部工程复用边界；`docs/OPEN-QUESTIONS.md` 转为已关闭的决议索引。
 - **R1 前端骨架**：React 19 + TypeScript 5.9 + Vite 8 + TanStack Query v5 + React Router v7 + Ant Design + Zustand + Vitest；实现登录、全局门店切换、门店列表/设置、商品目录（新建/编辑）；统一 API client（typed fetch、`X-Shop-Id` 注入、写操作 `Idempotency-Key`、按 `error.retryable` 重试、401 刷新一次）。
 - `src/api/types.ts` 为按后端冻结契约手写的临时类型层，待后端 `api/openapi.yaml` 产出后替换生成器；查询键含 `current_shop_id`，切换门店先取消在途请求、清理门店作用域缓存并重拉 `/me/permissions`。

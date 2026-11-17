@@ -11,8 +11,13 @@ export default function AppShell() {
   const me = useAuthStore((state) => state.me)
   const logout = useAuthStore((state) => state.logout)
 
-  const selected =
-    location.pathname.startsWith('/shops') ? '/shops' : location.pathname.startsWith('/catalog') ? '/catalog' : '/shops'
+  const selected = location.pathname.startsWith('/shops')
+    ? '/shops'
+    : location.pathname.startsWith('/catalog')
+      ? '/catalog'
+      : location.pathname.startsWith('/staff')
+        ? '/staff'
+        : '/queues'
 
   return (
     <Layout className="app-shell">
@@ -36,6 +41,8 @@ export default function AppShell() {
             mode="inline"
             selectedKeys={[selected]}
             items={[
+              { key: '/queues', label: '队列' },
+              { key: '/staff', label: '服务人员' },
               { key: '/shops', label: '门店列表' },
               { key: '/catalog', label: '商品目录' },
             ]}

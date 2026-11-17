@@ -129,3 +129,70 @@ export interface UpdateShopRequest {
   status: 'active' | 'inactive'
   version: number
 }
+
+/** Queues and staff (porch-os ADR-0009 / design/10). Shop-scoped resources. */
+export interface Queue {
+  public_id: string
+  seq: number
+  name: string
+  status: string
+  version: number
+  created_at: string
+  updated_at: string
+}
+
+export interface QueueView extends Queue {
+  staff_count: number
+}
+
+export interface StaffRef {
+  public_id: string
+  display_name: string
+}
+
+export interface QueueRef {
+  public_id: string
+  name: string
+  seq: number
+}
+
+export interface QueueDetail extends Queue {
+  staff: StaffRef[]
+}
+
+export interface Staff {
+  public_id: string
+  code: string
+  display_name: string
+  status: string
+  version: number
+  created_at: string
+  updated_at: string
+}
+
+export interface StaffDetail extends Staff {
+  queues: QueueRef[]
+}
+
+export interface CreateQueueRequest {
+  seq: number
+  name: string
+}
+
+export interface UpdateQueueRequest {
+  seq?: number
+  name?: string
+  status?: 'active' | 'inactive'
+  version: number
+}
+
+export interface CreateStaffRequest {
+  code: string
+  display_name: string
+}
+
+export interface UpdateStaffRequest {
+  display_name?: string
+  status?: 'active' | 'inactive'
+  version: number
+}

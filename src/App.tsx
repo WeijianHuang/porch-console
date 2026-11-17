@@ -6,8 +6,10 @@ import AppShell from './components/AppShell'
 import CatalogPage from './pages/CatalogPage'
 import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
+import QueuesPage from './pages/QueuesPage'
 import ShopSettingsPage from './pages/ShopSettingsPage'
 import ShopsPage from './pages/ShopsPage'
+import StaffPage from './pages/StaffPage'
 import { useAuthStore } from './stores/authStore'
 
 const queryClient = new QueryClient({
@@ -23,7 +25,8 @@ function Protected({ children }: { children: ReactNode }) {
 
 function Guest({ children }: { children: ReactNode }) {
   const status = useAuthStore((state) => state.status)
-  return status === 'authenticated' ? <Navigate to="/shops" replace /> : <>{children}</>
+  // Queues are the default landing view (ADR-0009).
+  return status === 'authenticated' ? <Navigate to="/queues" replace /> : <>{children}</>
 }
 
 export default function App() {
@@ -61,11 +64,13 @@ export default function App() {
               </Protected>
             }
           >
+            <Route path="/queues" element={<QueuesPage />} />
+            <Route path="/staff" element={<StaffPage />} />
             <Route path="/shops" element={<ShopsPage />} />
             <Route path="/shops/:shopId/settings" element={<ShopSettingsPage />} />
             <Route path="/catalog" element={<CatalogPage />} />
           </Route>
-          <Route path="/" element={<Navigate to="/shops" replace />} />
+          <Route path="/" element={<Navigate to="/queues" replace />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
