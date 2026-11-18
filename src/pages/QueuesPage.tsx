@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AppstoreOutlined, CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined,
-  PlusOutlined, SearchOutlined, TeamOutlined,
+  PlusOutlined, SearchOutlined, TableOutlined, TeamOutlined,
 } from '@ant-design/icons'
 import {
   Avatar, Button, Card, Checkbox, Form, Input, InputNumber, Modal,
@@ -27,7 +27,7 @@ interface QueueForm {
 
 const laneAccents = ['#2f7d5b', '#3f8f9e', '#d99a4e', '#7c6bb0', '#c6697b']
 
-type BoardView = 'queues' | 'staff'
+type BoardView = 'queues' | 'staff' | 'matrix'
 type DutyFilter = 'all' | 'on' | 'off'
 
 export default function QueuesPage() {
@@ -150,7 +150,9 @@ export default function QueuesPage() {
         description={
           view === 'queues'
             ? '队列多、服务员少：按队列横向排列，拖动卡片或使用箭头调整队列内顺序。'
-            : '服务员多、队列少：按人员网格排列，可筛选在岗状态并查看每人所属队列。'
+            : view === 'staff'
+              ? '服务员多、队列少：按人员网格排列，可筛选在岗状态并查看每人所属队列。'
+              : '队列纵向堆叠、人员横向成行：同时纵览多条队列并逐行查看成员。'
         }
         actions={
           <Space wrap>
@@ -160,6 +162,7 @@ export default function QueuesPage() {
               options={[
                 { value: 'queues', label: '队列视图', icon: <AppstoreOutlined /> },
                 { value: 'staff', label: '人员视图', icon: <TeamOutlined /> },
+                { value: 'matrix', label: '矩阵视图', icon: <TableOutlined /> },
               ]}
             />
             <Button icon={<TeamOutlined />} onClick={() => navigate('/staff')}>
@@ -235,6 +238,30 @@ export default function QueuesPage() {
                   <span>为当前门店添加一条队列</span>
                 </button>
               ) : null}
+            </div>
+          )
+        ) : view === 'matrix' ? (
+          queueViews.length === 0 ? (
+            <EmptyHint>该门店还没有队列{canWrite ? '，点击右上角新建' : ''}</EmptyHint>
+          ) : (
+            <div className="matrix-board">
+              {queueViews.map((queue, index) => {
+                const detailQuery = detailQueries[index]
+                return (
+                  <MatrixRow
+                    key={queue.public_id}
+                    queue={queue}
+                    detail={detailQuery?.data?.data}
+                    loading={detailQuery?.isPending ?? false}
+                    error={detailQuery?.isError ?? false}
+                    staffByPublicId={staffByPublicId}
+                    canWrite={canWrite}
+                    reordering={reorder.isPending}
+                    onSubmitOrder={submitOrder}
+                    onManage={() => setSelectedQueueId(queue.public_id)}
+                  />
+                )
+              })}
             </div>
           )
         ) : (
@@ -509,29 +536,16 @@ function StaffQueueModal({ shopId, staffDetail, queues, onClose, onChanged }: St
   )
 }
 
-interface QueueLaneProps {
-  queue: QueueView
-  detail?: QueueDetail
-  loading: boolean
-  error: boolean
-  staffByPublicId: Map<string, Staff>
-  canWrite: boolean
-  reordering: boolean
-  onSubmitOrder: (queueId: string, staffIds: string[], version: number) => Promise<unknown>
-  onManage: () => void
-}
+type OrderHandlers = Pick<QueueLaneProps, 'queue' | 'detail' | 'canWrite' | 'onSubmitOrder'>
 
-/** One horizontal lane; members are draggable cards with a click fallback. */
-function QueueLane({
-  queue, detail, loading, error, staffByPublicId, canWrite, reordering, onSubmitOrder, onManage,
-}: QueueLaneProps) {
+/** Shared local ordering with optimistic update + rollback (ADR-0002 decision 2). */
+function useStaffOrder({ queue, detail, canWrite, onSubmitOrder }: OrderHandlers) {
   const [order, setOrder] = useState<string[]>(() => detail?.staff.map((s) => s.public_id) ?? [])
   useEffect(() => {
     setOrder(detail?.staff.map((s) => s.public_id) ?? [])
   }, [detail])
 
   const members = new Map(detail?.staff.map((s) => [s.public_id, s]) ?? [])
-  const accent = laneAccents[(queue.seq - 1) % laneAccents.length]
 
   const applyOrder = async (next: string[]) => {
     if (!detail || !canWrite) return
@@ -563,6 +577,28 @@ function QueueLane({
     next.splice(to, 0, sourceId)
     void applyOrder(next)
   }
+
+  return { order, members, move, dropOn }
+}
+
+interface QueueLaneProps {
+  queue: QueueView
+  detail?: QueueDetail
+  loading: boolean
+  error: boolean
+  staffByPublicId: Map<string, Staff>
+  canWrite: boolean
+  reordering: boolean
+  onSubmitOrder: (queueId: string, staffIds: string[], version: number) => Promise<unknown>
+  onManage: () => void
+}
+
+/** One horizontal lane; members are draggable cards with a click fallback. */
+function QueueLane({
+  queue, detail, loading, error, staffByPublicId, canWrite, reordering, onSubmitOrder, onManage,
+}: QueueLaneProps) {
+  const { order, members, move, dropOn } = useStaffOrder({ queue, detail, canWrite, onSubmitOrder })
+  const accent = laneAccents[(queue.seq - 1) % laneAccents.length]
 
   return (
     <section
@@ -651,6 +687,91 @@ function QueueLane({
         <span className="queue-lane-count">序号 {queue.seq} · {order.length} 人</span>
         <Button type="link" size="small" onClick={onManage}>管理</Button>
       </footer>
+    </section>
+  )
+}
+
+type MatrixRowProps = QueueLaneProps
+
+/** One queue as a vertical row; members sit in a horizontal line of cards. */
+function MatrixRow({
+  queue, detail, loading, error, staffByPublicId, canWrite, reordering, onSubmitOrder, onManage,
+}: MatrixRowProps) {
+  const { order, members, move, dropOn } = useStaffOrder({ queue, detail, canWrite, onSubmitOrder })
+  const accent = laneAccents[(queue.seq - 1) % laneAccents.length]
+
+  return (
+    <section
+      className="matrix-row"
+      style={{ '--lane-accent': accent } as CSSProperties}
+      aria-label={`矩阵队列 ${queue.seq} ${queue.name}`}
+    >
+      <header className="matrix-row-head">
+        <span className="queue-seq">{queue.seq}</span>
+        <span className="matrix-row-title" title={queue.name}>{queue.name}</span>
+        {queue.status === 'active' ? <span className="pill on">启用</span> : <span className="pill off">停用</span>}
+        <span className={`pill ${queue.staff_count > 0 ? 'plain' : 'off'}`}>
+          {queue.staff_count} 人在列
+        </span>
+        <span className="matrix-row-spacer" />
+        <Button type="link" size="small" onClick={onManage}>管理</Button>
+      </header>
+      <div className="matrix-row-body">
+        {loading ? <div className="queue-lane-empty">服务人员加载中…</div> : null}
+        {error ? <div className="queue-lane-empty">服务人员加载失败</div> : null}
+        {detail && order.length === 0 ? <div className="queue-lane-empty">暂无服务人员</div> : null}
+        {order.map((staffId) => {
+          const member = members.get(staffId)
+          if (!member) return null
+          const code = staffByPublicId.get(staffId)?.code
+          const index = order.indexOf(staffId)
+          return (
+            <article
+              key={staffId}
+              className={`matrix-card${member.duty_status === 'on' ? '' : ' off-duty'}`}
+              draggable={canWrite}
+              title={canWrite ? '拖动调整队列内顺序' : undefined}
+              onDragStart={(event) => event.dataTransfer.setData('text/plain', staffId)}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault()
+                dropOn(staffId, event.dataTransfer.getData('text/plain'))
+              }}
+            >
+              <span className="staff-position">{index + 1}</span>
+              <Avatar
+                size={34}
+                style={{ backgroundColor: member.duty_status === 'on' ? accent : '#b7c3bb', flexShrink: 0 }}
+              >
+                {member.display_name.slice(0, 1)}
+              </Avatar>
+              <div className="matrix-card-body">
+                <div className="staff-card-name">{member.display_name}</div>
+                <div className="staff-card-meta">
+                  <span className={`pill ${member.duty_status === 'on' ? 'on' : 'off'}`}>
+                    {member.duty_status === 'on' ? '在岗' : '下班'}
+                  </span>
+                  {code ? <span className="staff-card-code">{code}</span> : null}
+                </div>
+              </div>
+              {canWrite ? (
+                <div className="matrix-card-actions">
+                  <Button
+                    type="text" size="small" title="前移" aria-label={`前移 ${member.display_name}`}
+                    disabled={reordering || index === 0}
+                    onClick={() => move(staffId, -1)}
+                  >←</Button>
+                  <Button
+                    type="text" size="small" title="后移" aria-label={`后移 ${member.display_name}`}
+                    disabled={reordering || index === order.length - 1}
+                    onClick={() => move(staffId, 1)}
+                  >→</Button>
+                </div>
+              ) : null}
+            </article>
+          )
+        })}
+      </div>
     </section>
   )
 }
