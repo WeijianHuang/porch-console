@@ -444,6 +444,9 @@ textarea {
   border-bottom: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
+  /* Ant Design's Layout.Header sets a large line-height (64-72px); the header
+     is a flex row, so reset it to avoid stretching text children vertically. */
+  line-height: normal;
 }
 
 .nav-toggle {
@@ -452,20 +455,21 @@ textarea {
 
 .header-context {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
 }
 
 .header-eyebrow {
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.10em;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .header-shop {
-  width: 220px;
+  width: 200px;
 }
 
 .header-shop .ant-select-selector {

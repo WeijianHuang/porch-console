@@ -97,7 +97,7 @@ export default function AppShell() {
             />
           </Tooltip>
           <div className="header-context">
-            <span className="header-eyebrow">当前工作区</span>
+            <span className="header-eyebrow">当前门店</span>
             <ShopSwitcher />
           </div>
           <div className="header-spacer" />
