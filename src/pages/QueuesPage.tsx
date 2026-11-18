@@ -1,21 +1,24 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined, PlusOutlined, TeamOutlined,
+  AppstoreOutlined, CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined,
+  PlusOutlined, SearchOutlined, TeamOutlined,
 } from '@ant-design/icons'
 import {
   Avatar, Button, Card, Checkbox, Form, Input, InputNumber, Modal,
-  Space, Typography, message,
+  Segmented, Space, Typography, message,
 } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { queryKeys } from '../api/keys'
 import { queuesApi, staffApi } from '../api/queues'
-import type { CreateQueueRequest, QueueDetail, QueueView, Staff } from '../api/types'
+import type {
+  CreateQueueRequest, QueueDetail, QueueView, Staff, StaffDetail,
+} from '../api/types'
 import PageHeader from '../components/PageHeader'
 import { EmptyHint, ErrorState, PageLoading } from '../components/RequestState'
 import { hasPermission, useAuthStore } from '../stores/authStore'
 import { useShopStore } from '../stores/shopStore'
-import { sortQueueViews } from '../shop/queueSort'
+import { sortQueueRefs, sortQueueViews } from '../shop/queueSort'
 
 interface QueueForm {
   seq: number
@@ -23,6 +26,9 @@ interface QueueForm {
 }
 
 const laneAccents = ['#2f7d5b', '#3f8f9e', '#d99a4e', '#7c6bb0', '#c6697b']
+
+type BoardView = 'queues' | 'staff'
+type DutyFilter = 'all' | 'on' | 'off'
 
 export default function QueuesPage() {
   const navigate = useNavigate()
@@ -33,6 +39,10 @@ export default function QueuesPage() {
   const [form] = Form.useForm<QueueForm>()
   const [open, setOpen] = useState(false)
   const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null)
+  const [view, setView] = useState<BoardView>('queues')
+  const [dutyFilter, setDutyFilter] = useState<DutyFilter>('all')
+  const [search, setSearch] = useState('')
+  const [managedStaffId, setManagedStaffId] = useState<string | null>(null)
 
   const queuesQuery = useQuery({
     queryKey: queryKeys.queues(shopId ?? ''),
@@ -42,7 +52,7 @@ export default function QueuesPage() {
   const staffQuery = useQuery({
     queryKey: queryKeys.staff(shopId ?? ''),
     queryFn: () => staffApi.list(shopId!),
-    enabled: Boolean(shopId) && canWrite,
+    enabled: Boolean(shopId),
   })
 
   const queueViews = sortQueueViews(queuesQuery.data?.data ?? [])
@@ -54,9 +64,20 @@ export default function QueuesPage() {
       enabled: Boolean(shopId),
     })),
   })
+  // People view needs each member's queue refs; keys stay shop-scoped (ADR-0006).
+  const staffDetailQueries = useQueries({
+    queries: (view === 'staff' ? staffQuery.data?.data ?? [] : []).map((person) => ({
+      queryKey: queryKeys.staffDetail(shopId ?? '', person.public_id),
+      queryFn: () => staffApi.get(shopId!, person.public_id),
+      enabled: Boolean(shopId) && view === 'staff',
+    })),
+  })
 
   useEffect(() => {
     setSelectedQueueId(null)
+    setManagedStaffId(null)
+    setSearch('')
+    setDutyFilter('all')
   }, [shopId])
 
   const invalidate = () => {
@@ -115,6 +136,8 @@ export default function QueuesPage() {
   const staffByPublicId = new Map(staff.map((item) => [item.public_id, item]))
   const selectedIndex = queueViews.findIndex((queue) => queue.public_id === selectedQueueId)
   const detail = selectedIndex >= 0 ? detailQueries[selectedIndex]?.data?.data ?? null : null
+  const managedIndex = staff.findIndex((person) => person.public_id === managedStaffId)
+  const managedDetail = managedIndex >= 0 ? staffDetailQueries[managedIndex]?.data?.data ?? null : null
 
   const assigned = detailQueries.flatMap((query) => query.data?.data?.staff ?? [])
   const onDuty = assigned.filter((member) => member.duty_status === 'on').length
@@ -124,9 +147,21 @@ export default function QueuesPage() {
       <PageHeader
         eyebrow="Workspace / Queues"
         title="队列看板"
-        description="当前门店的队列以横向看板呈现；拖动卡片或使用箭头调整队列内顺序。"
+        description={
+          view === 'queues'
+            ? '队列多、服务员少：按队列横向排列，拖动卡片或使用箭头调整队列内顺序。'
+            : '服务员多、队列少：按人员网格排列，可筛选在岗状态并查看每人所属队列。'
+        }
         actions={
-          <Space>
+          <Space wrap>
+            <Segmented<BoardView>
+              value={view}
+              onChange={setView}
+              options={[
+                { value: 'queues', label: '队列视图', icon: <AppstoreOutlined /> },
+                { value: 'staff', label: '人员视图', icon: <TeamOutlined /> },
+              ]}
+            />
             <Button icon={<TeamOutlined />} onClick={() => navigate('/staff')}>
               服务人员
             </Button>
@@ -171,35 +206,51 @@ export default function QueuesPage() {
       </div>
 
       <Card className="panel">
-        {queueViews.length === 0 ? (
-          <EmptyHint>该门店还没有队列{canWrite ? '，点击右上角新建' : ''}</EmptyHint>
+        {view === 'queues' ? (
+          queueViews.length === 0 ? (
+            <EmptyHint>该门店还没有队列{canWrite ? '，点击右上角新建' : ''}</EmptyHint>
+          ) : (
+            <div className="queue-board">
+              {queueViews.map((queue, index) => {
+                const detailQuery = detailQueries[index]
+                return (
+                  <QueueLane
+                    key={queue.public_id}
+                    queue={queue}
+                    detail={detailQuery?.data?.data}
+                    loading={detailQuery?.isPending ?? false}
+                    error={detailQuery?.isError ?? false}
+                    staffByPublicId={staffByPublicId}
+                    canWrite={canWrite}
+                    reordering={reorder.isPending}
+                    onSubmitOrder={submitOrder}
+                    onManage={() => setSelectedQueueId(queue.public_id)}
+                  />
+                )
+              })}
+              {canWrite ? (
+                <button type="button" className="queue-lane queue-lane-add" onClick={openCreate}>
+                  <span className="add-icon"><PlusOutlined /></span>
+                  <strong>新建队列</strong>
+                  <span>为当前门店添加一条队列</span>
+                </button>
+              ) : null}
+            </div>
+          )
         ) : (
-          <div className="queue-board">
-            {queueViews.map((queue, index) => {
-              const detailQuery = detailQueries[index]
-              return (
-                <QueueLane
-                  key={queue.public_id}
-                  queue={queue}
-                  detail={detailQuery?.data?.data}
-                  loading={detailQuery?.isPending ?? false}
-                  error={detailQuery?.isError ?? false}
-                  staffByPublicId={staffByPublicId}
-                  canWrite={canWrite}
-                  reordering={reorder.isPending}
-                  onSubmitOrder={submitOrder}
-                  onManage={() => setSelectedQueueId(queue.public_id)}
-                />
-              )
-            })}
-            {canWrite ? (
-              <button type="button" className="queue-lane queue-lane-add" onClick={openCreate}>
-                <span className="add-icon"><PlusOutlined /></span>
-                <strong>新建队列</strong>
-                <span>为当前门店添加一条队列</span>
-              </button>
-            ) : null}
-          </div>
+          <PeopleBoard
+            shopId={shopId}
+            staff={staff}
+            detailQueries={staffDetailQueries}
+            queues={queueViews}
+            canWrite={canWrite}
+            dutyFilter={dutyFilter}
+            search={search}
+            onDutyFilterChange={setDutyFilter}
+            onSearchChange={setSearch}
+            onManage={setManagedStaffId}
+            onChanged={invalidate}
+          />
         )}
 
         <Modal
@@ -230,6 +281,14 @@ export default function QueuesPage() {
           </Form>
         </Modal>
 
+        <StaffQueueModal
+          shopId={shopId}
+          staffDetail={managedDetail}
+          queues={queueViews}
+          onClose={() => setManagedStaffId(null)}
+          onChanged={invalidate}
+        />
+
         <QueueAssignModal
           shopId={shopId}
           queue={detail}
@@ -240,6 +299,213 @@ export default function QueuesPage() {
         />
       </Card>
     </div>
+  )
+}
+
+interface StaffDetailQuery {
+  data?: { data: StaffDetail }
+  isPending: boolean
+  isError: boolean
+}
+
+interface PeopleBoardProps {
+  shopId: string
+  staff: Staff[]
+  detailQueries: StaffDetailQuery[]
+  queues: QueueView[]
+  canWrite: boolean
+  dutyFilter: DutyFilter
+  search: string
+  onDutyFilterChange: (value: DutyFilter) => void
+  onSearchChange: (value: string) => void
+  onManage: (staffId: string) => void
+  onChanged: () => void
+}
+
+/** People-first view: one card per staff member, with their queue membership. */
+function PeopleBoard({
+  shopId, staff, detailQueries, queues, canWrite, dutyFilter, search,
+  onDutyFilterChange, onSearchChange, onManage, onChanged,
+}: PeopleBoardProps) {
+  const setDuty = useMutation({
+    mutationFn: ({ person, duty }: { person: Staff; duty: 'on' | 'off' }) =>
+      staffApi.update(shopId, person.public_id, {
+        duty_status: duty,
+        version: person.version,
+      }),
+    onSuccess: () => {
+      message.success('在岗状态已更新')
+      onChanged()
+    },
+    onError: (error) => message.error((error as Error).message || '状态更新失败'),
+  })
+
+  const needle = search.trim().toLowerCase()
+  const visible = staff.filter((person) => {
+    if (dutyFilter !== 'all' && person.duty_status !== dutyFilter) return false
+    if (!needle) return true
+    return person.display_name.toLowerCase().includes(needle)
+      || person.code.toLowerCase().includes(needle)
+  })
+
+  return (
+    <div className="people-board">
+      <div className="people-toolbar">
+        <Segmented<DutyFilter>
+          value={dutyFilter}
+          onChange={onDutyFilterChange}
+          options={[
+            { value: 'all', label: '全部' },
+            { value: 'on', label: '在岗' },
+            { value: 'off', label: '下班' },
+          ]}
+        />
+        <Input
+          className="people-search"
+          prefix={<SearchOutlined />}
+          placeholder="搜索姓名或工号"
+          allowClear
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+        />
+        <span className="queue-lane-count">显示 {visible.length} / {staff.length} 人</span>
+      </div>
+
+      {staff.length === 0 ? (
+        <EmptyHint>该门店暂无服务人员{canWrite ? '，可先在「服务人员」页建档' : ''}</EmptyHint>
+      ) : visible.length === 0 ? (
+        <EmptyHint>没有符合条件的服务人员，可调整筛选或搜索词</EmptyHint>
+      ) : (
+        <div className="card-grid">
+          {visible.map((person) => {
+            const index = staff.findIndex((item) => item.public_id === person.public_id)
+            const detailQuery = detailQueries[index]
+            const queueRefs = sortQueueRefs(detailQuery?.data?.data?.queues ?? [])
+            return (
+              <article className="entity-card person-card" key={person.public_id}>
+                <div className="entity-card-head">
+                  <Avatar size={42} className="entity-avatar" style={{ backgroundColor: 'transparent', color: 'inherit' }}>
+                    {person.display_name.slice(0, 1)}
+                  </Avatar>
+                  <div className="entity-card-title">
+                    <strong>{person.display_name}</strong>
+                    <span>{person.code}</span>
+                  </div>
+                  {canWrite && person.status === 'active' ? (
+                    <Button
+                      size="small"
+                      type={person.duty_status === 'on' ? 'default' : 'primary'}
+                      loading={setDuty.isPending}
+                      onClick={() => setDuty.mutate({
+                        person,
+                        duty: person.duty_status === 'on' ? 'off' : 'on',
+                      })}
+                    >
+                      {person.duty_status === 'on' ? '下班' : '上班'}
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="entity-card-meta">
+                  <span className={`pill ${person.status === 'active' ? 'on' : 'off'}`}>
+                    {person.status === 'active' ? '在职' : '停用'}
+                  </span>
+                  <span className={`pill ${person.duty_status === 'on' ? 'on' : 'off'}`}>
+                    {person.duty_status === 'on' ? '在岗' : '下班'}
+                  </span>
+                  <span className="queue-lane-count">{queueRefs.length} 个队列</span>
+                </div>
+                <div className="staff-queue-chips">
+                  {detailQuery?.isPending ? <span className="queue-lane-empty">所属队列加载中…</span> : null}
+                  {detailQuery?.isError ? <span className="queue-lane-empty">所属队列加载失败</span> : null}
+                  {detailQuery && !detailQuery.isPending && !detailQuery.isError && queueRefs.length === 0 ? (
+                    <span className="queue-lane-empty">尚未分配队列</span>
+                  ) : null}
+                  {queueRefs.map((queue) => (
+                    <span className="queue-chip" key={queue.public_id} title={queue.name}>
+                      <b>{queue.seq}</b>
+                      {queue.name}
+                    </span>
+                  ))}
+                </div>
+                <div className="entity-card-foot">
+                  <span className="queue-lane-count">共 {queues.length} 个队列可用</span>
+                  {canWrite ? (
+                    <Button type="link" onClick={() => onManage(person.public_id)}>
+                      管理队列
+                    </Button>
+                  ) : null}
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface StaffQueueModalProps {
+  shopId: string
+  staffDetail: StaffDetail | null
+  queues: QueueView[]
+  onClose: () => void
+  onChanged: () => void
+}
+
+function StaffQueueModal({ shopId, staffDetail, queues, onClose, onChanged }: StaffQueueModalProps) {
+  const [selected, setSelected] = useState<string[]>([])
+
+  useEffect(() => {
+    if (staffDetail) setSelected(staffDetail.queues.map((queue) => queue.public_id))
+  }, [staffDetail])
+
+  const mutate = useMutation({
+    mutationFn: async ({ queueId, assign }: { queueId: string; assign: boolean }) => {
+      if (!staffDetail) return
+      if (assign) await queuesApi.assign(shopId, queueId, staffDetail.public_id)
+      else await queuesApi.unassign(shopId, queueId, staffDetail.public_id)
+    },
+    onSuccess: () => {
+      message.success('队列分配已更新')
+      onChanged()
+    },
+    onError: (error) => message.error((error as Error).message || '操作失败'),
+  })
+
+  const toggle = (queueId: string, checked: boolean) => {
+    setSelected((current) =>
+      checked ? [...current, queueId] : current.filter((id) => id !== queueId),
+    )
+    mutate.mutate({ queueId, assign: checked })
+  }
+
+  return (
+    <Modal
+      title={staffDetail ? `${staffDetail.display_name}（${staffDetail.code}）所在队列` : ''}
+      open={Boolean(staffDetail)}
+      onCancel={onClose}
+      footer={<Button onClick={onClose}>关闭</Button>}
+    >
+      {staffDetail ? (
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Text type="secondary">勾选即加入该队列；同一人员可在本店多个队列服务</Typography.Text>
+          {queues.length === 0 ? (
+            <EmptyHint>该门店暂无队列，请先在队列视图新建</EmptyHint>
+          ) : (
+            sortQueueViews(queues).map((queue) => (
+              <Checkbox
+                key={queue.public_id}
+                checked={selected.includes(queue.public_id)}
+                disabled={mutate.isPending}
+                onChange={(event) => toggle(queue.public_id, event.target.checked)}
+              >
+                序号 {queue.seq} · {queue.name}
+              </Checkbox>
+            ))
+          )}
+        </Space>
+      ) : null}
+    </Modal>
   )
 }
 
