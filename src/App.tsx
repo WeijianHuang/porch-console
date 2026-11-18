@@ -7,6 +7,7 @@ import CatalogPage from './pages/CatalogPage'
 import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
 import QueuesPage from './pages/QueuesPage'
+import RoomsPage from './pages/RoomsPage'
 import ShopSettingsPage from './pages/ShopSettingsPage'
 import ShopsPage from './pages/ShopsPage'
 import StaffPage from './pages/StaffPage'
@@ -66,6 +67,7 @@ export default function App() {
           >
             <Route path="/queues" element={<QueuesPage />} />
             <Route path="/staff" element={<StaffPage />} />
+            <Route path="/rooms" element={<RoomsPage />} />
             <Route path="/shops" element={<ShopsPage />} />
             <Route path="/shops/:shopId/settings" element={<ShopSettingsPage />} />
             <Route path="/catalog" element={<CatalogPage />} />

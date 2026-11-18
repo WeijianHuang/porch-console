@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Avatar, Button, Dropdown, Layout, Menu, Tooltip } from 'antd'
 import {
+  ApartmentOutlined,
   AppstoreOutlined,
   CalendarOutlined,
   DownOutlined,
@@ -20,6 +21,7 @@ const { Header, Sider, Content } = Layout
 const navItems = [
   { key: '/queues', label: '队列看板', icon: <CalendarOutlined /> },
   { key: '/staff', label: '服务人员', icon: <TeamOutlined /> },
+  { key: '/rooms', label: '房间管理', icon: <ApartmentOutlined /> },
   { key: '/shops', label: '门店列表', icon: <ShopOutlined /> },
   { key: '/catalog', label: '商品目录', icon: <AppstoreOutlined /> },
 ]
@@ -35,9 +37,11 @@ export default function AppShell() {
     ? '/shops'
     : location.pathname.startsWith('/catalog')
       ? '/catalog'
-      : location.pathname.startsWith('/staff')
-        ? '/staff'
-        : '/queues'
+      : location.pathname.startsWith('/rooms')
+        ? '/rooms'
+        : location.pathname.startsWith('/staff')
+          ? '/staff'
+          : '/queues'
 
   const today = new Date().toLocaleDateString('zh-CN', {
     month: 'long',
@@ -79,7 +83,7 @@ export default function AppShell() {
         <div className="sider-spacer" />
         <div className="sider-foot">
           <strong>运营工作台</strong>
-          队列 · 人员 · 门店 · 目录
+          队列 · 人员 · 房间 · 门店 · 目录
           <br />
           统一视图，按门店隔离
         </div>

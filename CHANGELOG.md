@@ -6,6 +6,7 @@
 
 ### 新增
 
+- **房间管理（对齐后端 ADR-0011 / design/11）**：新增 `/rooms` 与侧边栏「房间管理」入口；房间页按楼层分区展示（楼层降序、组内按房间号升序），支持新建 / 编辑 / 启停 / 删除（二次确认）；`src/api/rooms.ts` 对齐 `/rooms` 端点、全部单店请求带 `X-Shop-Id`、写操作带 `Idempotency-Key`；`room.read` / `room.write` 权限控制；纯函数 `groupByFloor` / `floorLabel` 与单测。新增 `docs/decisions/0003-rooms-and-floors.md`。
 - **队列与服务人员（对齐后端 ADR-0009 / design/10）**：主页默认路由改为 `/queues`；新增队列页（序号 + 名称、按 `seq` 排序、队列内服务人员勾选分配）与服务人员页（建档、查看每人所在多个队列）；`src/api/queues.ts` 对齐 `/queues` / `/staff` / `queues/{id}/staff` 端点，全部单店请求带 `X-Shop-Id`、写操作带 `Idempotency-Key`。新增 `queue.read` / `queue.write` 权限控制；`sortBySeq` 纯函数与单测。
 
 - **`docs/decisions/0001-frontend-stack-and-r1-scope.md`**：落定 FQ-01–16——采用全新技术栈（含主流方案对比）、API 类型来自后端契约、令牌按 A 方案、R1 页面范围、测试门禁与内部工程复用边界；`docs/OPEN-QUESTIONS.md` 转为已关闭的决议索引。

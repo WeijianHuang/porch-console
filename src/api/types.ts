@@ -206,3 +206,30 @@ export interface ReorderQueueStaffRequest {
   staff_ids: string[]
   version: number
 }
+
+/** Rooms and floors (porch-os ADR-0011 / design/11). Shop-scoped resources.
+ * Floor is an integer scalar (-5..200), not an entity; no floor_id. */
+export interface Room {
+  public_id: string
+  floor: number
+  code: string
+  name: string
+  status: 'active' | 'inactive' | string
+  version: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateRoomRequest {
+  floor: number
+  code: string
+  name: string
+}
+
+export interface UpdateRoomRequest {
+  floor?: number
+  code?: string
+  name?: string
+  status?: 'active' | 'inactive'
+  version: number
+}
