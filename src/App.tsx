@@ -3,11 +3,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Spin } from 'antd'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppShell from './components/AppShell'
+import AuditPage from './pages/AuditPage'
+import BoardPage from './pages/BoardPage'
 import CatalogPage from './pages/CatalogPage'
+import LinkagePage from './pages/LinkagePage'
 import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
 import QueuesPage from './pages/QueuesPage'
 import RoomsPage from './pages/RoomsPage'
+import RulesPage from './pages/RulesPage'
 import ShopSettingsPage from './pages/ShopSettingsPage'
 import ShopsPage from './pages/ShopsPage'
 import StaffPage from './pages/StaffPage'
@@ -68,6 +72,10 @@ export default function App() {
             <Route path="/queues" element={<QueuesPage />} />
             <Route path="/staff" element={<StaffPage />} />
             <Route path="/rooms" element={<RoomsPage />} />
+            <Route path="/board" element={<BoardPage />} />
+            <Route path="/rules" element={<RulesPage />} />
+            <Route path="/linkage" element={<LinkagePage />} />
+            <Route path="/audit" element={<AuditPage />} />
             <Route path="/shops" element={<ShopsPage />} />
             <Route path="/shops/:shopId/settings" element={<ShopSettingsPage />} />
             <Route path="/catalog" element={<CatalogPage />} />

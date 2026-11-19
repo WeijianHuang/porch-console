@@ -3,11 +3,14 @@ import { Avatar, Button, Dropdown, Layout, Menu, Tooltip } from 'antd'
 import {
   ApartmentOutlined,
   AppstoreOutlined,
+  AuditOutlined,
   CalendarOutlined,
+  DashboardOutlined,
   DownOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  SettingOutlined,
   ShopOutlined,
   TeamOutlined,
   UserOutlined,
@@ -22,6 +25,10 @@ const navItems = [
   { key: '/queues', label: '队列看板', icon: <CalendarOutlined /> },
   { key: '/staff', label: '服务人员', icon: <TeamOutlined /> },
   { key: '/rooms', label: '房间管理', icon: <ApartmentOutlined /> },
+  { key: '/board', label: '调度看板', icon: <DashboardOutlined /> },
+  { key: '/rules', label: '判定链配置', icon: <SettingOutlined /> },
+  { key: '/linkage', label: '联动策略', icon: <AppstoreOutlined /> },
+  { key: '/audit', label: '审计与指标', icon: <AuditOutlined /> },
   { key: '/shops', label: '门店列表', icon: <ShopOutlined /> },
   { key: '/catalog', label: '商品目录', icon: <AppstoreOutlined /> },
 ]
@@ -33,15 +40,11 @@ export default function AppShell() {
   const me = useAuthStore((state) => state.me)
   const logout = useAuthStore((state) => state.logout)
 
-  const selected = location.pathname.startsWith('/shops')
-    ? '/shops'
-    : location.pathname.startsWith('/catalog')
-      ? '/catalog'
-      : location.pathname.startsWith('/rooms')
-        ? '/rooms'
-        : location.pathname.startsWith('/staff')
-          ? '/staff'
-          : '/queues'
+  // Longest matching route wins so /shops/:id/settings maps to /shops, etc.
+  const selected = [...navItems]
+    .map((item) => item.key)
+    .filter((key) => location.pathname.startsWith(key))
+    .sort((a, b) => b.length - a.length)[0] ?? '/queues'
 
   const today = new Date().toLocaleDateString('zh-CN', {
     month: 'long',

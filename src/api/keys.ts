@@ -10,6 +10,12 @@ export const queryKeys = {
   staff: (shopId: string) => ['shop-scope', shopId, 'staff'] as const,
   staffDetail: (shopId: string, staffId: string) => ['shop-scope', shopId, 'staff', staffId] as const,
   rooms: (shopId: string) => ['shop-scope', shopId, 'rooms'] as const,
+  schedulingBoard: (shopId: string) => ['shop-scope', shopId, 'scheduling-board'] as const,
+  schedulingRules: (shopId: string) => ['shop-scope', shopId, 'scheduling-rules'] as const,
+  schedulingPolicies: (shopId: string) => ['shop-scope', shopId, 'scheduling-policies'] as const,
+  schedulingTaskTypes: (shopId: string) => ['shop-scope', shopId, 'scheduling-task-types'] as const,
+  schedulingEvents: (shopId: string) => ['shop-scope', shopId, 'scheduling-events'] as const,
+  schedulingAudit: (shopId: string) => ['shop-scope', shopId, 'scheduling-audit'] as const,
   permissions: ['identity', 'permissions'] as const,
 }
 

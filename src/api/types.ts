@@ -233,3 +233,181 @@ export interface UpdateRoomRequest {
   status?: 'active' | 'inactive'
   version: number
 }
+
+/** Scheduling engine (porch-os ADR-0012 / design/12). Generic terms only. */
+
+export type ExecutorState =
+  | 'standby' | 'available' | 'executing' | 'designated_occupied' | 'pinned'
+  | 'time_reserved' | 'overtime' | 'disabled' | 'leave' | 'off_duty'
+  | 'cross_group_support'
+
+export interface BoardQueue {
+  public_id: string
+  seq: number
+  name: string
+  type: string
+  frozen: boolean
+  enabled: boolean
+}
+
+export interface BoardMember {
+  queue_id: string
+  executor_id: string
+  display_name: string
+  code: string
+  position: number
+  source: string
+  pin_type: string
+  duty_status: string
+  state: string
+  is_primary: boolean
+}
+
+export interface BoardExecutor {
+  public_id: string
+  code: string
+  display_name: string
+  duty_status: string
+  state: string
+  primary_queue_id: string
+  stop_rotation: boolean
+}
+
+export interface SchedulingBoard {
+  queues: BoardQueue[]
+  members: BoardMember[]
+  executors: BoardExecutor[]
+}
+
+export interface TimeWindow {
+  start: string
+  end: string
+  days?: number[]
+}
+
+export type ScopeLevel = 'executor' | 'queue' | 'task_type' | 'site' | 'global'
+export type RuleType =
+  | 'executor_stopped_rotation' | 'rotation_master_switch'
+  | 'assignment_method_allows_rotation' | 'task_type_no_rotation'
+  | 'overtime_no_rotation' | 'time_reserved' | 'group_a_to_b' | 'group_b_to_a'
+export type Decision = 'rotate' | 'hold'
+
+export interface SchedulingRule {
+  public_id: string
+  type: RuleType
+  order: number
+  enabled: boolean
+  scope: ScopeLevel
+  scope_id: string
+  on_hit: Decision
+  time_window: TimeWindow | null
+  assignment_methods: string[]
+  from_group: string
+  to_group: string
+  no_rotation: boolean
+  version: number
+}
+
+export type RuleInput = Pick<SchedulingRule,
+  'type' | 'order' | 'enabled' | 'scope' | 'scope_id' | 'on_hit' |
+  'time_window' | 'assignment_methods' | 'from_group' | 'to_group' | 'no_rotation'>
+
+export type PropagationMode =
+  | 'independent' | 'all' | 'same_group' | 'allowlist' | 'exclude' | 'frozen'
+export type QueueAction =
+  | 'move_to_tail' | 'restore' | 'insert_at' | 'suspend' | 'remove'
+
+export interface SchedulingPolicy {
+  public_id: string
+  primary_queue_id: string
+  mode: PropagationMode
+  allowlist: string[]
+  exclude: string[]
+  group: string
+  action_map: Record<string, QueueAction>
+  insert_at: Record<string, number>
+  version: number
+}
+
+export interface PolicyInput {
+  primary_queue_id: string
+  mode: PropagationMode
+  allowlist: string[]
+  exclude: string[]
+  group: string
+  action_map: Record<string, QueueAction>
+  insert_at: Record<string, number>
+}
+
+export interface SchedulingTaskType {
+  public_id: string
+  code: string
+  name: string
+  group: string
+  no_rotation: boolean
+  version: number
+}
+
+export interface SchedulingEvent {
+  public_id: string
+  event_id: string
+  staff_id: string
+  source_queue_id: string
+  method: string
+  decision: string
+  hit_rule: string
+  explain: string
+  operator: string
+  occurred_at: string
+}
+
+export interface AuditEntry {
+  public_id: string
+  action: string
+  target_type: string
+  target_id: string
+  payload: Record<string, unknown>
+  operator: string
+  created_at: string
+}
+
+export interface ChainStep {
+  rule_id: string
+  type: RuleType
+  scope: ScopeLevel
+  hit: boolean
+  decision: Decision
+  reason: string
+}
+
+export interface PositionChange {
+  queue_id: string
+  executor_id: string
+  old_position: number
+  new_position: number
+  action: string
+  source: string
+}
+
+export interface DecisionRecord {
+  event_id: string
+  site_id: string
+  source_queue_id: string
+  decision: Decision
+  hit_rule_id: string
+  hit_rule_type: RuleType | ''
+  hit_scope: ScopeLevel | ''
+  chain: ChainStep[]
+  fell_back: boolean
+  changes: PositionChange[]
+  explain: string
+  operator: string
+}
+
+export interface DispatchRequest {
+  event_id: string
+  staff_id: string
+  source_queue_id: string
+  task_type_id: string
+  assignment_method: string
+}

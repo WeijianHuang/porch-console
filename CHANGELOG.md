@@ -6,6 +6,7 @@
 
 ### 新增
 
+- **调度台并入（对齐后端 ADR-0012 / design/12）**：新增 `/board` 调度看板、`/rules` 判定链配置、`/linkage` 联动策略、`/audit` 审计与指标四页与侧栏入口。调度看板复用服务人员作为执行者，队列并排展示位次卡（状态色标 + 文字、主队列 / 置顶标记）、派单抽屉（≤3 步）、置顶 / 解除、回原位 / 完成 / 取消、决策解释抽屉（命中规则 + 逐链 + 位次变更）。判定链页可编辑 8 步顺序 / 开关 / 作用域 / 命中动作 / 时段并发布；联动页支持六种模式、名单 / 排除与逐队列动作映射（各自落位）；审计页呈现实测指标不设阈值。`src/api/scheduling.ts` 全部单店请求带 `X-Shop-Id`、写带 `Idempotency-Key`；query keys 含 shop 前缀随站点切换失效。UI 文案只用通用术语，敏感词对照表不入库。新增 `docs/decisions/0004-scheduling-console.md`。
 - **房间管理（对齐后端 ADR-0011 / design/11）**：新增 `/rooms` 与侧边栏「房间管理」入口；房间页按楼层分区展示（楼层降序、组内按房间号升序），支持新建 / 编辑 / 启停 / 删除（二次确认）；`src/api/rooms.ts` 对齐 `/rooms` 端点、全部单店请求带 `X-Shop-Id`、写操作带 `Idempotency-Key`；`room.read` / `room.write` 权限控制；纯函数 `groupByFloor` / `floorLabel` 与单测。新增 `docs/decisions/0003-rooms-and-floors.md`。
 - **队列与服务人员（对齐后端 ADR-0009 / design/10）**：主页默认路由改为 `/queues`；新增队列页（序号 + 名称、按 `seq` 排序、队列内服务人员勾选分配）与服务人员页（建档、查看每人所在多个队列）；`src/api/queues.ts` 对齐 `/queues` / `/staff` / `queues/{id}/staff` 端点，全部单店请求带 `X-Shop-Id`、写操作带 `Idempotency-Key`。新增 `queue.read` / `queue.write` 权限控制；`sortBySeq` 纯函数与单测。
 
