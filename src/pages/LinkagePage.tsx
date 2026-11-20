@@ -122,7 +122,11 @@ export default function LinkagePage() {
           title="同一主队列只能有一条策略，请修改后再发布" />
       ) : null}
       {draft.length === 0 ? (
-        <div className="panel rule-empty"><p className="muted">当前站点还没有联动策略，默认仅来源队列参与。</p></div>
+        <div className="panel rule-empty">
+          <p className="muted">当前站点还没有联动策略，默认仅来源队列参与。</p>
+          <Button icon={<PlusOutlined />} disabled={!hasFreeQueue || mut.isPending}
+            onClick={addPolicy}>新增策略</Button>
+        </div>
       ) : draft.map((p) => {
         const primaryOptions = queueOptions.filter(
           (x) => x.value === p.primary_queue_id || !usedPrimaries.has(x.value),
@@ -172,7 +176,7 @@ export default function LinkagePage() {
                 </label>
               ) : null}
             </div>
-            <div className="panel-head"><h3>逐队列动作</h3><Tag>各自落位</Tag></div>
+            <div className="panel-head panel-subhead"><h3>逐队列动作</h3><Tag>各自落位</Tag></div>
             <div className="action-map">
               {(queuesQ.data?.data.queues ?? []).map((qItem) => {
                 const action = p.action_map[qItem.public_id] ?? 'move_to_tail'

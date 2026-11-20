@@ -68,8 +68,8 @@ export default function AuditPage() {
                     {ACTION_LABEL[v] ?? v}
                   </Tag> },
                 { title: '对象', dataIndex: 'target_type', render: (v: string) => v.replace('scheduling.', '') },
-                { title: '事件', dataIndex: 'target_id', render: (v: string) => v || '—' },
-                { title: '操作者', dataIndex: 'operator', render: (v: string) => v || '—' },
+                { title: '事件', dataIndex: 'target_id', width: 190, render: (v: string) => v || '—' },
+                { title: '操作者', dataIndex: 'operator', width: 104, render: (v: string) => v || '—' },
                 { title: '明细', dataIndex: 'payload', width: 320,
                   render: (v: Record<string, unknown>) =>
                     <code className="audit-payload">{JSON.stringify(v ?? {})}</code> },

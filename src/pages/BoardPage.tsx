@@ -253,11 +253,11 @@ export default function BoardPage() {
           <Table<SchedulingEvent>
             rowKey="public_id"
             size="small"
-            scroll={{ x: 1160 }}
+            scroll={{ x: 1040 }}
             dataSource={eventsQ.data?.data ?? []}
             pagination={{ pageSize: 6, hideOnSinglePage: true }}
             columns={[
-              { title: '事件', dataIndex: 'event_id', key: 'event_id' },
+              { title: '事件', dataIndex: 'event_id', key: 'event_id', width: 172 },
               { title: '执行者', dataIndex: 'staff_id', key: 'staff_id', render: (v: string) =>
                 board?.executors.find((e) => e.public_id === v)?.display_name ?? v.slice(0, 8) },
               { title: '指派方式', dataIndex: 'method', key: 'method', width: 90, render: (v: string) =>
@@ -265,7 +265,7 @@ export default function BoardPage() {
               { title: '决策', dataIndex: 'decision', key: 'decision', render: (v: string) =>
                 <Tag color={v === 'rotate' ? 'green' : 'default'}>{v === 'rotate' ? '轮转' : '保持'}</Tag> },
               { title: '说明', dataIndex: 'explain', key: 'explain', ellipsis: true },
-              { title: '时间', dataIndex: 'occurred_at', key: 'occurred_at', render: formatUTC8 },
+              { title: '时间', dataIndex: 'occurred_at', key: 'occurred_at', width: 152, render: formatUTC8 },
               { title: '操作', key: 'op', fixed: 'right', width: 290, render: (_: unknown, row) => {
                 const state = board?.executors.find((e) => e.public_id === row.staff_id)?.state
                 const canChange = state === 'executing' || state === 'designated_occupied'

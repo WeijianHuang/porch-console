@@ -576,7 +576,14 @@ textarea {
   box-shadow: var(--shadow-sm);
 }
 
-.rule-empty {
+/* Cards carry their own body padding (`.panel > .ant-card-body`); plain
+   <section>/<div> panels must supply it here, otherwise content sits flush
+   against the border. */
+.panel:not(.ant-card) {
+  padding: 20px 22px;
+}
+
+.panel.rule-empty {
   padding: 40px 24px;
   text-align: center;
 }
@@ -1491,12 +1498,41 @@ textarea {
   padding: 8px 10px; border: 1px solid var(--line, #e5e9ec); border-radius: 8px; font-size: 12px;
 }
 .chain-list li.chain-hit { border-color: var(--accent, #d9a441); background: #fffaf0; }
+.linkage-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.linkage-panel .panel-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .linkage-panel .form-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 14px 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 16px; margin: 0;
+}
+.linkage-panel .panel-subhead {
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft, #eef1f0);
+}
+.linkage-panel .panel-subhead .ant-tag {
+  margin-inline-end: 0;
 }
 .form-grid label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted, #7a8781); }
-.action-map { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-.action-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
+.action-map { display: flex; flex-direction: column; gap: 0; margin-top: 0; }
+.action-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 9px 0; font-size: 13px; color: var(--ink-700, #4a5651);
+  border-bottom: 1px dashed var(--line-soft, #eef1f0);
+}
+.action-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
 .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
 .metric-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line, #e5e9ec); font-size: 13px; }
 .rule-alert { margin-bottom: 16px; }
@@ -1509,6 +1545,20 @@ textarea {
 .audit-payload {
   display: block; max-width: 300px; overflow-wrap: anywhere; white-space: normal;
   font-size: 11px; line-height: 1.6;
+}
+
+/* Vertical rhythm for page sections. Kept last so the child-margin reset wins
+   over component rules (e.g. .stat-strip) at equal specificity: the stack gap
+   is the single source of spacing, and plain .panel sections never sit flush. */
+.page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.page-stack > * {
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 /* ==========================================================================
