@@ -6,7 +6,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Alert, Button, Drawer, Empty, Popconfirm, Select, Space, Table, Tag, Tooltip, message,
+  Alert, Button, Drawer, Empty, Popconfirm, Segmented, Select, Space, Table, Tag, Tooltip, message,
 } from 'antd'
 import {
   ArrowRightOutlined, CheckCircleOutlined, ClockCircleOutlined,
@@ -17,6 +17,7 @@ import { ErrorState, PageLoading } from '../components/RequestState'
 import { schedulingApi } from '../api/scheduling'
 import { queryKeys } from '../api/keys'
 import { useShopStore } from '../stores/shopStore'
+import { useBoardDensity, type BoardDensity } from '../stores/boardDensity'
 import type {
   BoardMember, DecisionRecord, DispatchRequest, SchedulingEvent,
 } from '../api/types'
@@ -50,6 +51,8 @@ type DecisionDetail =
 
 export default function BoardPage() {
   const shopId = useShopStore((s) => s.currentShopId)
+  const boardDensity = useBoardDensity((s) => s.boardDensity)
+  const setBoardDensity = useBoardDensity((s) => s.setBoardDensity)
   const qc = useQueryClient()
   const [dispatchOpen, setDispatchOpen] = useState(false)
   const [detail, setDetail] = useState<DecisionDetail | null>(null)
@@ -173,22 +176,40 @@ export default function BoardPage() {
       </div>
 
       <div className="board-toolbar">
-        <span className="muted">队列筛选</span>
-        <Select
-          value={selectedQueue}
-          onChange={setSelectedQueue}
-          style={{ width: 220 }}
-          options={[
-            { value: 'all', label: '全部队列' },
-            ...(board?.queues ?? []).map((q) => ({ value: q.public_id, label: `${q.seq} · ${q.name}` })),
-          ]}
-        />
+        <div className="toolbar-group">
+          <span className="muted">队列筛选</span>
+          <Select
+            value={selectedQueue}
+            onChange={setSelectedQueue}
+            style={{ width: 220 }}
+            options={[
+              { value: 'all', label: '全部队列' },
+              ...(board?.queues ?? []).map((q) => ({ value: q.public_id, label: `${q.seq} · ${q.name}` })),
+            ]}
+          />
+        </div>
+        <div className="toolbar-group">
+          <Tooltip title="仅影响本机显示，不改变位次与调度结果">
+            <span className="muted">卡片密度</span>
+          </Tooltip>
+          <Segmented<BoardDensity>
+            className="board-density"
+            size="small"
+            value={boardDensity}
+            onChange={setBoardDensity}
+            options={[
+              { label: '紧凑', value: 'compact' },
+              { label: '中度', value: 'medium' },
+              { label: '宽松', value: 'loose' },
+            ]}
+          />
+        </div>
       </div>
 
       {queues.length === 0 ? (
         <Empty description="当前站点还没有队列" />
       ) : (
-        <div className="board-lanes">
+        <div className="board-lanes" data-density={boardDensity}>
           {queues.map((q) => {
             const members = membersByQueue.get(q.public_id) ?? []
             return (
@@ -199,7 +220,7 @@ export default function BoardPage() {
                     <strong>{q.name}</strong>
                     {q.frozen ? <Tag color="blue">冻结</Tag> : null}
                   </div>
-                  <span className="muted">{members.length} 位</span>
+                  <span className="lane-count">{members.length} 位</span>
                 </header>
                 <div className="lane-members">
                   {members.length === 0 ? (
@@ -210,13 +231,14 @@ export default function BoardPage() {
                       <div className="pos-main">
                         <div className="pos-name">
                           <strong>{m.display_name}</strong>
-                          {m.is_primary ? <Tag color="green">主队列</Tag> : null}
-                          {m.pin_type !== 'none' ? <Tag color="gold">置顶</Tag> : null}
+                          {m.is_primary ? <span className="pos-primary-dot" title="主队列" aria-label="主队列" /> : null}
+                          {m.is_primary ? <Tag color="green" className="pos-primary-tag">主队列</Tag> : null}
+                          {m.pin_type !== 'none' ? <Tag color="gold" className="pos-pin-tag">置顶</Tag> : null}
                         </div>
                         <div className="pos-meta">
-                          <span className="muted">{m.code}</span>
+                          <span className="pos-code muted">{m.code}</span>
                           {stateTag(m.state)}
-                          {m.duty_status === 'off' ? <Tag>下班</Tag> : null}
+                          {m.duty_status === 'off' ? <Tag className="pos-off-tag">下班</Tag> : null}
                         </div>
                       </div>
                       <div className="pos-actions">
@@ -266,7 +288,7 @@ export default function BoardPage() {
                 <Tag color={v === 'rotate' ? 'green' : 'default'}>{v === 'rotate' ? '轮转' : '保持'}</Tag> },
               { title: '说明', dataIndex: 'explain', key: 'explain', ellipsis: true },
               { title: '时间', dataIndex: 'occurred_at', key: 'occurred_at', width: 152, render: formatUTC8 },
-              { title: '操作', key: 'op', fixed: 'right', width: 290, render: (_: unknown, row) => {
+              { title: '操作', key: 'op', width: 290, render: (_: unknown, row) => {
                 const state = board?.executors.find((e) => e.public_id === row.staff_id)?.state
                 const canChange = state === 'executing' || state === 'designated_occupied'
                 const nextMethod = row.method === 'designated' ? 'rotational' : 'designated'

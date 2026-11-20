@@ -1476,55 +1476,170 @@ textarea {
 .board-toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 20px;
 }
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* AntD's default track is near-white, which made the selected density
+   invisible on this surface. Give the switch a clear track and thumb. */
+.board-density.ant-segmented {
+  padding: 2px;
+  border: 1px solid var(--line, #e5e9ec);
+  border-radius: 9px;
+  background: var(--line-soft, #f0f3f1);
+}
+.board-density .ant-segmented-item {
+  color: var(--ink-600, #5d7066);
+}
+.board-density .ant-segmented-item-label {
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 22px;
+}
+.board-density .ant-segmented-item-selected {
+  border-radius: 7px;
+  background: var(--surface, #fff);
+  color: var(--forest-600, #1f6b4f);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(16, 40, 30, 0.12);
+}
+
+/* Queues stack vertically (one row per queue). Members then flow into as many
+   columns as the chosen density allows, so a 20-person queue stays on screen
+   instead of stretching the page or scrolling sideways. */
 .board-lanes {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 16px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
 }
 .board-lane {
-  background: var(--surface, #fff);
+  --lane-accent: var(--forest-500, #2f8a68);
+  position: relative;
+  overflow: hidden;
   border: 1px solid var(--line, #e5e9ec);
-  border-radius: 14px;
-  padding: 14px;
-  box-shadow: 0 1px 3px rgba(16, 40, 30, 0.04);
+  border-radius: var(--radius-lg, 14px);
+  background: linear-gradient(180deg, var(--mint-50, #f4faf6) 0, #fbfdfb 46px, #fff 100%);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
-.board-lane.is-inactive { opacity: 0.55; }
+.board-lane:hover {
+  border-color: #cdded2;
+  box-shadow: var(--shadow-sm);
+}
+.board-lane::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--lane-accent);
+  opacity: 0.8;
+}
+.board-lane.is-inactive {
+  opacity: 0.58;
+}
+.board-lane.is-inactive::before {
+  background: var(--ink-300, #b7c3bb);
+}
 .lane-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 10px;
-  margin-bottom: 10px;
-  border-bottom: 1px solid var(--line, #e5e9ec);
+  gap: 10px;
+  padding: 10px 16px 10px 18px;
+  border-bottom: 1px solid var(--line-soft);
 }
-.lane-head > div { display: flex; align-items: center; gap: 8px; }
+.lane-head > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.lane-head strong {
+  color: var(--ink-900);
+  font-size: 15px;
+}
 .lane-seq {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
   border-radius: 8px;
   background: var(--brand-soft, #e7f2ec);
   color: var(--brand, #1f6b4f);
   font-weight: 700;
   font-size: 13px;
 }
-.lane-members { display: flex; flex-direction: column; gap: 8px; }
-.lane-empty { color: var(--muted, #7a8781); font-size: 13px; padding: 16px 4px; text-align: center; }
+.lane-count {
+  flex: 0 0 auto;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--mint-100, #e7f2ec);
+  color: var(--forest-600, #1f6b4f);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Column width, gap and padding all come from the density preset below. */
+.lane-members {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-min, 208px), 1fr));
+  align-content: start;
+  gap: var(--card-gap, 8px);
+  padding: var(--lane-pad, 11px 16px 13px);
+}
+.lane-empty {
+  grid-column: 1 / -1;
+  color: var(--muted, #7a8781);
+  font-size: 13px;
+  padding: 16px 4px;
+  text-align: center;
+}
+
+.board-lanes[data-density='compact'] {
+  --card-min: 148px;
+  --card-gap: 6px;
+  --lane-pad: 8px 14px 10px;
+}
+.board-lanes[data-density='medium'] {
+  --card-min: 208px;
+  --card-gap: 8px;
+  --lane-pad: 11px 16px 13px;
+}
+.board-lanes[data-density='loose'] {
+  --card-min: 264px;
+  --card-gap: 10px;
+  --lane-pad: 14px 18px 16px;
+}
+
 .position-card {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  min-width: 0;
+  padding: 9px 11px;
   border: 1px solid var(--line, #e5e9ec);
   border-radius: 10px;
   background: var(--surface, #fff);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
-.position-card.is-pinned { border-color: var(--accent, #d9a441); background: #fffaf0; }
+.position-card:hover {
+  border-color: #cfe0d5;
+  box-shadow: var(--shadow-xs);
+}
+.position-card.is-pinned {
+  border-color: var(--accent, #d9a441);
+  background: #fffaf0;
+}
 .pos-number {
   flex: 0 0 28px;
   height: 28px;
@@ -1538,8 +1653,149 @@ textarea {
 }
 .pos-main { flex: 1; min-width: 0; }
 .pos-name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.pos-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 12px; }
+.pos-name strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pos-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 12px;
+}
 .pos-actions { flex: 0 0 auto; }
+/* Primary-queue marker for the compact preset, where the tag does not fit. */
+.pos-primary-dot {
+  display: none;
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--forest-500, #2f8a68);
+}
+
+/* Density presets: only sizes change, never the information shown. */
+.board-lanes[data-density='compact'] .lane-head {
+  padding: 8px 14px 8px 16px;
+}
+.board-lanes[data-density='compact'] .lane-head strong {
+  font-size: 14px;
+}
+.board-lanes[data-density='compact'] .lane-seq {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  font-size: 12px;
+}
+.board-lanes[data-density='compact'] .position-card {
+  gap: 6px;
+  padding: 5px 7px;
+  border-radius: 8px;
+}
+.board-lanes[data-density='compact'] .pos-number {
+  flex: 0 0 20px;
+  height: 20px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.board-lanes[data-density='compact'] .pos-name {
+  gap: 4px;
+}
+.board-lanes[data-density='compact'] .pos-name strong {
+  font-size: 13px;
+}
+.board-lanes[data-density='compact'] .pos-meta {
+  gap: 4px;
+  margin-top: 1px;
+  font-size: 10px;
+}
+.board-lanes[data-density='compact'] .pos-meta .ant-tag {
+  margin: 0;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 15px;
+}
+.board-lanes[data-density='compact'] .pos-primary-tag,
+.board-lanes[data-density='compact'] .pos-pin-tag {
+  display: none;
+}
+.board-lanes[data-density='compact'] .pos-primary-dot {
+  display: inline-block;
+}
+.board-lanes[data-density='compact'] .position-card.is-pinned .pos-number {
+  background: #fdf1d8;
+  color: #8a5c00;
+}
+.board-lanes[data-density='compact'] .pos-actions .ant-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--ink-600, #5d7066);
+  font-size: 12px;
+  opacity: 0.5;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.board-lanes[data-density='compact'] .position-card:hover .pos-actions .ant-btn,
+.board-lanes[data-density='compact'] .pos-actions .ant-btn:focus-visible {
+  opacity: 1;
+}
+.board-lanes[data-density='compact'] .pos-actions .ant-btn:hover {
+  color: var(--forest-600, #1f6b4f);
+  background: var(--mint-100, #e7f2ec);
+  opacity: 1;
+}
+
+.board-lanes[data-density='medium'] .position-card {
+  gap: 8px;
+  padding: 7px 9px;
+}
+.board-lanes[data-density='medium'] .pos-number {
+  flex: 0 0 24px;
+  height: 24px;
+  border-radius: 7px;
+  font-size: 12px;
+}
+.board-lanes[data-density='medium'] .pos-name {
+  gap: 5px;
+}
+.board-lanes[data-density='medium'] .pos-name strong {
+  font-size: 13.5px;
+}
+.board-lanes[data-density='medium'] .pos-name .ant-tag,
+.board-lanes[data-density='medium'] .pos-meta .ant-tag {
+  margin: 0;
+  padding: 0 5px;
+  font-size: 11px;
+  line-height: 17px;
+}
+.board-lanes[data-density='medium'] .pos-meta {
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 11px;
+}
+.board-lanes[data-density='medium'] .pos-actions .ant-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+}
+
+.board-lanes[data-density='loose'] .position-card {
+  gap: 12px;
+  padding: 11px 13px;
+}
+.board-lanes[data-density='loose'] .pos-number {
+  flex: 0 0 30px;
+  height: 30px;
+  font-size: 14px;
+}
+.board-lanes[data-density='loose'] .pos-name strong {
+  font-size: 14.5px;
+}
 .dispatch-steps {
   display: flex;
   gap: 8px;
@@ -1688,6 +1944,23 @@ textarea {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     padding: 8px 12px 10px;
   }
+  /* Board lanes: keep the queue title and count on their own lines rather than
+     squeezing them into vertical text. */
+  .lane-head {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    padding: 9px 12px;
+  }
+  .lane-count {
+    margin-left: auto;
+  }
+  .board-lanes[data-density='compact'] {
+    --card-min: 132px;
+  }
+  .board-lanes[data-density='medium'],
+  .board-lanes[data-density='loose'] {
+    --card-min: 168px;
+  }
 }
 
 @media (max-width: 560px) {
@@ -1704,13 +1977,17 @@ textarea {
     width: 100%;
   }
   /* Scheduling console: keep controls reachable instead of compressing them. */
-  .board-lanes,
   .metrics-grid {
     grid-template-columns: 1fr;
   }
   .board-toolbar,
   .dispatch-steps {
     flex-wrap: wrap;
+  }
+  /* Toolbar groups share the row equally so the density switch never overflows. */
+  .board-toolbar .toolbar-group {
+    flex: 1 1 100%;
+    justify-content: space-between;
   }
   .detail-facts {
     grid-template-columns: 72px 1fr;
