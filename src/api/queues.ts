@@ -7,14 +7,18 @@ import type {
   ApiEnvelope,
   CreateQueueRequest,
   CreateStaffRequest,
+  MoveQueueStaffRequest,
   Queue,
   QueueDetail,
   QueueRef,
   QueueView,
   ReorderQueueStaffRequest,
+  SetStaffRotationRequest,
+  SetStaffStateRequest,
   Staff,
   StaffDetail,
   StaffRef,
+  StaffSummary,
   UpdateQueueRequest,
   UpdateStaffRequest,
 } from './types'
@@ -57,7 +61,7 @@ export const queuesApi = {
 
 export const staffApi = {
   list: (shopId: string) =>
-    api.get<ApiEnvelope<Staff[]>>(`${base(shopId)}/staff`, { shopId }),
+    api.get<ApiEnvelope<StaffSummary[]>>(`${base(shopId)}/staff`, { shopId }),
   create: (shopId: string, body: CreateStaffRequest) =>
     api.post<ApiEnvelope<Staff>>(`${base(shopId)}/staff`, body, { shopId }),
   get: (shopId: string, staffId: string) =>
@@ -68,6 +72,21 @@ export const staffApi = {
     ),
   remove: (shopId: string, staffId: string) =>
     api.delete(`${base(shopId)}/staff/${encodeURIComponent(staffId)}`, { shopId }),
+  /** Operator controls (porch-os ADR-0013). State is the scheduling state, not
+   * the employment status; the server validates the manual transition. */
+  setState: (shopId: string, staffId: string, body: SetStaffStateRequest) =>
+    api.post<ApiEnvelope<StaffSummary>>(
+      `${base(shopId)}/staff/${encodeURIComponent(staffId)}/state`, body, { shopId },
+    ),
+  setRotation: (shopId: string, staffId: string, body: SetStaffRotationRequest) =>
+    api.patch<ApiEnvelope<StaffSummary>>(
+      `${base(shopId)}/staff/${encodeURIComponent(staffId)}/rotation`, body, { shopId },
+    ),
+  moveInQueue: (shopId: string, queueId: string, staffId: string, body: MoveQueueStaffRequest) =>
+    api.post<ApiEnvelope<{ queue_id: string; staff_id: string; position: number }>>(
+      `${base(shopId)}/queues/${encodeURIComponent(queueId)}/staff/${encodeURIComponent(staffId)}/move`,
+      body, { shopId },
+    ),
 }
 
 export type { QueueRef, StaffRef }

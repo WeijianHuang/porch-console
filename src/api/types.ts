@@ -177,6 +177,38 @@ export interface StaffDetail extends Staff {
   queues: QueueRef[]
 }
 
+export interface StaffQueueRef {
+  public_id: string
+  name: string
+  seq: number
+  position: number
+  pin_type: string
+}
+
+/** `GET /staff` projection (porch-os ADR-0013): state + every membership. */
+export interface StaffSummary extends Staff {
+  state: ExecutorState | string
+  stop_rotation: boolean
+  primary_queue_id: string
+  queues: StaffQueueRef[]
+}
+
+export interface SetStaffStateRequest {
+  state: string
+  reason?: string
+  version?: number
+}
+
+export interface SetStaffRotationRequest {
+  stop_rotation: boolean
+  version?: number
+}
+
+export interface MoveQueueStaffRequest {
+  to: 'head' | 'tail' | 'index'
+  index?: number
+}
+
 export interface CreateQueueRequest {
   seq: number
   name: string

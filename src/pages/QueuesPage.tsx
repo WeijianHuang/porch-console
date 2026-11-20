@@ -12,13 +12,14 @@ import { useNavigate } from 'react-router-dom'
 import { queryKeys } from '../api/keys'
 import { queuesApi, staffApi } from '../api/queues'
 import type {
-  CreateQueueRequest, QueueDetail, QueueView, Staff, StaffDetail,
+  CreateQueueRequest, QueueDetail, QueueView, StaffDetail, StaffSummary,
 } from '../api/types'
 import PageHeader from '../components/PageHeader'
 import { EmptyHint, ErrorState, PageLoading } from '../components/RequestState'
 import { hasPermission, useAuthStore } from '../stores/authStore'
 import { useShopStore } from '../stores/shopStore'
 import { sortQueueRefs, sortQueueViews } from '../shop/queueSort'
+import { bucketOf, stateLabel } from '../shop/staffStatus'
 
 interface QueueForm {
   seq: number
@@ -202,7 +203,7 @@ export default function QueuesPage() {
         <div className="stat-tile">
           <span className="stat-icon amber"><ClockCircleOutlined /></span>
           <div className="stat-text">
-            <div className="stat-label">下班</div>
+            <div className="stat-label">离岗</div>
             <div className="stat-value">{assigned.length - onDuty}</div>
           </div>
         </div>
@@ -337,7 +338,7 @@ interface StaffDetailQuery {
 
 interface PeopleBoardProps {
   shopId: string
-  staff: Staff[]
+  staff: StaffSummary[]
   detailQueries: StaffDetailQuery[]
   queues: QueueView[]
   canWrite: boolean
@@ -355,7 +356,7 @@ function PeopleBoard({
   onDutyFilterChange, onSearchChange, onManage, onChanged,
 }: PeopleBoardProps) {
   const setDuty = useMutation({
-    mutationFn: ({ person, duty }: { person: Staff; duty: 'on' | 'off' }) =>
+    mutationFn: ({ person, duty }: { person: StaffSummary; duty: 'on' | 'off' }) =>
       staffApi.update(shopId, person.public_id, {
         duty_status: duty,
         version: person.version,
@@ -384,7 +385,7 @@ function PeopleBoard({
           options={[
             { value: 'all', label: '全部' },
             { value: 'on', label: '在岗' },
-            { value: 'off', label: '下班' },
+            { value: 'off', label: '离岗' },
           ]}
         />
         <Input
@@ -409,7 +410,11 @@ function PeopleBoard({
             const detailQuery = detailQueries[index]
             const queueRefs = sortQueueRefs(detailQuery?.data?.data?.queues ?? [])
             return (
-              <article className="entity-card person-card" key={person.public_id}>
+              <article
+                className="entity-card person-card"
+                data-bucket={bucketOf(person.state)}
+                key={person.public_id}
+              >
                 <div className="entity-card-head">
                   <Avatar size={42} className="entity-avatar" style={{ backgroundColor: 'transparent', color: 'inherit' }}>
                     {person.display_name.slice(0, 1)}
@@ -423,12 +428,13 @@ function PeopleBoard({
                       size="small"
                       type={person.duty_status === 'on' ? 'default' : 'primary'}
                       loading={setDuty.isPending}
+                      title={person.duty_status === 'on' ? '点击将该人员置为离岗' : '点击将该人员置为在岗'}
                       onClick={() => setDuty.mutate({
                         person,
                         duty: person.duty_status === 'on' ? 'off' : 'on',
                       })}
                     >
-                      {person.duty_status === 'on' ? '下班' : '上班'}
+                      {person.duty_status === 'on' ? '设为离岗' : '设为在岗'}
                     </Button>
                   ) : null}
                 </div>
@@ -436,8 +442,9 @@ function PeopleBoard({
                   <span className={`pill ${person.status === 'active' ? 'on' : 'off'}`}>
                     {person.status === 'active' ? '在职' : '停用'}
                   </span>
+                  <span className="staff-state-pill">{stateLabel(person.state)}</span>
                   <span className={`pill ${person.duty_status === 'on' ? 'on' : 'off'}`}>
-                    {person.duty_status === 'on' ? '在岗' : '下班'}
+                    {person.duty_status === 'on' ? '在岗' : '离岗'}
                   </span>
                   <span className="queue-lane-count">{queueRefs.length} 个队列</span>
                 </div>
@@ -586,7 +593,7 @@ interface QueueLaneProps {
   detail?: QueueDetail
   loading: boolean
   error: boolean
-  staffByPublicId: Map<string, Staff>
+  staffByPublicId: Map<string, StaffSummary>
   canWrite: boolean
   reordering: boolean
   onSubmitOrder: (queueId: string, staffIds: string[], version: number) => Promise<unknown>
@@ -624,12 +631,14 @@ function QueueLane({
         {order.map((staffId) => {
           const member = members.get(staffId)
           if (!member) return null
-          const code = staffByPublicId.get(staffId)?.code
+          const summary = staffByPublicId.get(staffId)
+          const code = summary?.code
           const index = order.indexOf(staffId)
           return (
             <article
               key={staffId}
               className={`staff-card${member.duty_status === 'on' ? '' : ' off-duty'}`}
+              data-bucket={summary ? bucketOf(summary.state) : undefined}
               draggable={canWrite}
               title={canWrite ? '拖动调整队列内顺序' : undefined}
               onDragStart={(event) => event.dataTransfer.setData('text/plain', staffId)}
@@ -650,7 +659,7 @@ function QueueLane({
                 <div className="staff-card-name">{member.display_name}</div>
                 <div className="staff-card-meta">
                   <span className={`pill ${member.duty_status === 'on' ? 'on' : 'off'}`}>
-                    {member.duty_status === 'on' ? '在岗' : '下班'}
+                    {member.duty_status === 'on' ? '在岗' : '离岗'}
                   </span>
                   {code ? <span className="staff-card-code">{code}</span> : null}
                 </div>
@@ -723,12 +732,14 @@ function MatrixRow({
         {order.map((staffId) => {
           const member = members.get(staffId)
           if (!member) return null
-          const code = staffByPublicId.get(staffId)?.code
+          const summary = staffByPublicId.get(staffId)
+          const code = summary?.code
           const index = order.indexOf(staffId)
           return (
             <article
               key={staffId}
               className={`matrix-card${member.duty_status === 'on' ? '' : ' off-duty'}`}
+              data-bucket={summary ? bucketOf(summary.state) : undefined}
               draggable={canWrite}
               title={canWrite ? '拖动调整队列内顺序' : undefined}
               onDragStart={(event) => event.dataTransfer.setData('text/plain', staffId)}
@@ -751,7 +762,7 @@ function MatrixRow({
                 <div className="staff-card-name" title={member.display_name}>{member.display_name}</div>
                 <div className="matrix-card-meta">
                   <span className={`matrix-dot${member.duty_status === 'on' ? ' on' : ''}`} />
-                  <span>{member.duty_status === 'on' ? '在岗' : '下班'}</span>
+                  <span>{member.duty_status === 'on' ? '在岗' : '离岗'}</span>
                   {code ? <span className="staff-card-code">{code}</span> : null}
                 </div>
               </div>
@@ -780,7 +791,7 @@ function MatrixRow({
 interface AssignModalProps {
   shopId: string
   queue: QueueDetail | null
-  staff: Staff[]
+  staff: StaffSummary[]
   canWrite: boolean
   onClose: () => void
   onChanged: () => void

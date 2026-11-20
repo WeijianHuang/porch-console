@@ -22,22 +22,7 @@ import type {
   BoardMember, DecisionRecord, DispatchRequest, SchedulingEvent,
 } from '../api/types'
 import { formatUTC8 } from '../utils/datetime'
-
-const STATE_LABEL: Record<string, string> = {
-  standby: '待命', available: '可调度', executing: '执行中',
-  designated_occupied: '指定占用', pinned: '置顶', time_reserved: '时段保留',
-  overtime: '加班中', disabled: '停用', leave: '请假',
-  off_duty: '下班', cross_group_support: '跨组支援',
-}
-
-const STATE_TONE: Record<string, string> = {
-  available: 'success', executing: 'processing', pinned: 'warning',
-  standby: 'default', cross_group_support: 'cyan', time_reserved: 'purple',
-}
-
-function stateTag(state: string) {
-  return <Tag color={STATE_TONE[state] ?? 'default'}>{STATE_LABEL[state] ?? state}</Tag>
-}
+import { bucketOf, stateLabel } from '../shop/staffStatus'
 
 /**
  * Two real sources for the detail drawer:
@@ -226,7 +211,11 @@ export default function BoardPage() {
                   {members.length === 0 ? (
                     <div className="lane-empty">暂无执行者</div>
                   ) : members.map((m) => (
-                    <div className={`position-card ${m.pin_type !== 'none' ? 'is-pinned' : ''}`} key={`${m.queue_id}-${m.executor_id}`}>
+                    <div
+                      className={`position-card ${m.pin_type !== 'none' ? 'is-pinned' : ''}`}
+                      data-bucket={bucketOf(m.state)}
+                      key={`${m.queue_id}-${m.executor_id}`}
+                    >
                       <span className="pos-number">{m.position}</span>
                       <div className="pos-main">
                         <div className="pos-name">
@@ -237,8 +226,8 @@ export default function BoardPage() {
                         </div>
                         <div className="pos-meta">
                           <span className="pos-code muted">{m.code}</span>
-                          {stateTag(m.state)}
-                          {m.duty_status === 'off' ? <Tag className="pos-off-tag">下班</Tag> : null}
+                          <span className="staff-state-pill">{stateLabel(m.state)}</span>
+                          {m.duty_status === 'off' ? <Tag className="pos-off-tag">离岗</Tag> : null}
                         </div>
                       </div>
                       <div className="pos-actions">
