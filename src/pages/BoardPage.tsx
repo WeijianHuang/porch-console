@@ -6,7 +6,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Alert, Button, Drawer, Empty, Select, Space, Table, Tag, Tooltip, message,
+  Alert, Button, Drawer, Empty, Popconfirm, Select, Space, Table, Tag, Tooltip, message,
 } from 'antd'
 import {
   ArrowRightOutlined, CheckCircleOutlined, ClockCircleOutlined,
@@ -18,7 +18,7 @@ import { schedulingApi } from '../api/scheduling'
 import { queryKeys } from '../api/keys'
 import { useShopStore } from '../stores/shopStore'
 import type {
-  BoardMember, ChainStep, DecisionRecord, DispatchRequest, SchedulingEvent,
+  BoardMember, DecisionRecord, DispatchRequest, SchedulingEvent,
 } from '../api/types'
 import { formatUTC8 } from '../utils/datetime'
 
@@ -38,11 +38,21 @@ function stateTag(state: string) {
   return <Tag color={STATE_TONE[state] ?? 'default'}>{STATE_LABEL[state] ?? state}</Tag>
 }
 
+/**
+ * Two real sources for the detail drawer:
+ *  - 'record': full DecisionRecord returned live from dispatch (has chain + changes)
+ *  - 'event': persisted SchedulingEvent summary (no per-step chain stored)
+ * The old code fabricated an empty chain and issued a pointless refetch.
+ */
+type DecisionDetail =
+  | { kind: 'record'; record: DecisionRecord }
+  | { kind: 'event'; event: SchedulingEvent }
+
 export default function BoardPage() {
   const shopId = useShopStore((s) => s.currentShopId)
   const qc = useQueryClient()
   const [dispatchOpen, setDispatchOpen] = useState(false)
-  const [explain, setExplain] = useState<DecisionRecord | null>(null)
+  const [detail, setDetail] = useState<DecisionDetail | null>(null)
   const [selectedQueue, setSelectedQueue] = useState<string>('all')
 
   const boardQ = useQuery({
@@ -122,7 +132,8 @@ export default function BoardPage() {
         actions={
           <Space>
             <Tooltip title="释放到期或不可用的置顶">
-              <Button icon={<RestOutlined />} onClick={() => releaseMut.mutate()}>
+              <Button icon={<RestOutlined />} loading={releaseMut.isPending}
+                disabled={releaseMut.isPending} onClick={() => releaseMut.mutate()}>
                 释放置顶
               </Button>
             </Tooltip>
@@ -230,6 +241,7 @@ export default function BoardPage() {
           <Table<SchedulingEvent>
             rowKey="public_id"
             size="small"
+            scroll={{ x: 980 }}
             dataSource={eventsQ.data?.data ?? []}
             pagination={{ pageSize: 6, hideOnSinglePage: true }}
             columns={[
@@ -241,23 +253,22 @@ export default function BoardPage() {
                 <Tag color={v === 'rotate' ? 'green' : 'default'}>{v === 'rotate' ? '轮转' : '保持'}</Tag> },
               { title: '说明', dataIndex: 'explain', key: 'explain', ellipsis: true },
               { title: '时间', dataIndex: 'occurred_at', key: 'occurred_at', render: formatUTC8 },
-              { title: '操作', key: 'op', render: (_: unknown, row) => (
-                <Space size={4}>
-                  <Button size="small" type="link" onClick={() => {
-                    void schedulingApi.events(shopId!).then(() => {
-                      // Explanation is reconstructed from the decision summary stored on the event.
-                      setExplain({
-                        event_id: row.event_id, site_id: shopId!, source_queue_id: row.source_queue_id,
-                        decision: row.decision as 'rotate' | 'hold', hit_rule_id: row.hit_rule,
-                        hit_rule_type: '' as never, hit_scope: '' as never,
-                        chain: [] as ChainStep[], fell_back: false, changes: [],
-                        explain: row.explain, operator: row.operator,
-                      })
-                    })
-                  }}>解释</Button>
-                  <Button size="small" type="link" onClick={() => actionMut.mutate({ event: row.event_id, action: 'restore' })}>回原位</Button>
-                  <Button size="small" type="link" onClick={() => actionMut.mutate({ event: row.event_id, action: 'complete' })}>完成</Button>
-                  <Button size="small" type="link" danger onClick={() => actionMut.mutate({ event: row.event_id, action: 'cancel' })}>取消</Button>
+              { title: '操作', key: 'op', fixed: 'right', width: 210, render: (_: unknown, row) => (
+                <Space size={2} wrap className="event-row-actions">
+                  <Button size="small" type="link"
+                    onClick={() => setDetail({ kind: 'event', event: row })}>解释</Button>
+                  <Button size="small" type="link" disabled={actionMut.isPending}
+                    onClick={() => actionMut.mutate({ event: row.event_id, action: 'restore' })}>回原位</Button>
+                  <Popconfirm title="标记该事件已完成？" okText="完成" cancelText="取消"
+                    disabled={actionMut.isPending}
+                    onConfirm={() => actionMut.mutate({ event: row.event_id, action: 'complete' })}>
+                    <Button size="small" type="link" disabled={actionMut.isPending}>完成</Button>
+                  </Popconfirm>
+                  <Popconfirm title="取消该事件并恢复位次？" okText="取消事件" cancelText="返回"
+                    okButtonProps={{ danger: true }} disabled={actionMut.isPending}
+                    onConfirm={() => actionMut.mutate({ event: row.event_id, action: 'cancel' })}>
+                    <Button size="small" type="link" danger disabled={actionMut.isPending}>取消</Button>
+                  </Popconfirm>
                 </Space>
               ) },
             ]}
@@ -275,51 +286,88 @@ export default function BoardPage() {
         onDispatched={(rec) => {
           setDispatchOpen(false)
           invalidate()
-          setExplain(rec)
+          setDetail({ kind: 'record', record: rec })
         }}
       />
 
       <Drawer
-        title="决策解释"
+        title={detail?.kind === 'event' ? '事件摘要' : '决策解释'}
         width={520}
-        open={!!explain}
-        onClose={() => setExplain(null)}
+        open={!!detail}
+        onClose={() => setDetail(null)}
       >
-        {explain ? (
-          <div className="explain-body">
-            <Alert type={explain.decision === 'rotate' ? 'success' : 'info'} showIcon
-              message={explain.decision === 'rotate' ? '判定为位次轮转' : '判定为位次保持'}
-              description={explain.explain || '—'} />
-            <h3>判定链</h3>
-            {explain.chain.length === 0 ? (
-              <p className="muted">该事件的逐链明细未随摘要返回；命中规则：{explain.hit_rule_id || '无'}。</p>
-            ) : (
-              <ol className="chain-list">
-                {explain.chain.map((s, i) => (
-                  <li key={`${s.rule_id}-${i}`} className={s.hit ? 'chain-hit' : ''}>
-                    <code>{s.type}</code>
-                    <span>{s.scope}</span>
-                    {s.hit ? <Tag color="orange">命中</Tag> : <Tag>通过</Tag>}
-                    {s.reason ? <span className="muted">{s.reason}</span> : null}
-                  </li>
-                ))}
-              </ol>
-            )}
-            {explain.changes.length > 0 ? (
-              <>
-                <h3>位次变更</h3>
-                <Table size="small" rowKey={(r) => r.queue_id} dataSource={explain.changes}
-                  pagination={false} columns={[
-                    { title: '队列', dataIndex: 'queue_id' },
-                    { title: '原', dataIndex: 'old_position' },
-                    { title: '新', dataIndex: 'new_position' },
-                    { title: '动作', dataIndex: 'action' },
-                  ]} />
-              </>
-            ) : null}
-          </div>
-        ) : null}
+        {detail ? <DecisionDetailView detail={detail} /> : null}
       </Drawer>
+    </div>
+  )
+}
+
+function DecisionDetailView({ detail }: { detail: DecisionDetail }) {
+  // Both sources carry these common fields; only a live dispatch has chain/changes.
+  const common = detail.kind === 'record'
+    ? {
+      decision: detail.record.decision,
+      explain: detail.record.explain,
+      rule: detail.record.hit_rule_id,
+      operator: detail.record.operator,
+      eventId: detail.record.event_id,
+    }
+    : {
+      decision: detail.event.decision as 'rotate' | 'hold',
+      explain: detail.event.explain,
+      rule: detail.event.hit_rule,
+      operator: detail.event.operator,
+      eventId: detail.event.event_id,
+    }
+
+  return (
+    <div className="explain-body">
+      <Alert type={common.decision === 'rotate' ? 'success' : 'info'} showIcon
+        message={common.decision === 'rotate' ? '判定为位次轮转' : '判定为位次保持'}
+        description={common.explain || '—'} />
+      <div className="detail-facts">
+        <div><span>事件</span><code>{common.eventId}</code></div>
+        <div><span>命中规则</span><code>{common.rule || '无'}</code></div>
+        <div><span>决策</span><Tag color={common.decision === 'rotate' ? 'green' : 'default'}>
+          {common.decision === 'rotate' ? '轮转' : '保持'}</Tag></div>
+        <div><span>操作者</span>{common.operator || '—'}</div>
+      </div>
+
+      {detail.kind === 'event' ? (
+        <p className="muted detail-note">
+          历史事件仅保留决策摘要，未持久化逐步骤链明细；需要完整链路请在派单后查看。
+        </p>
+      ) : (
+        <>
+          <h3>判定链</h3>
+          {detail.record.chain.length === 0 ? (
+            <p className="muted">本次派单未返回逐链明细。</p>
+          ) : (
+            <ol className="chain-list">
+              {detail.record.chain.map((s, i) => (
+                <li key={`${s.rule_id}-${i}`} className={s.hit ? 'chain-hit' : ''}>
+                  <code>{s.type}</code>
+                  <span>{s.scope}</span>
+                  {s.hit ? <Tag color="orange">命中</Tag> : <Tag>通过</Tag>}
+                  {s.reason ? <span className="muted">{s.reason}</span> : null}
+                </li>
+              ))}
+            </ol>
+          )}
+          {detail.record.changes.length > 0 ? (
+            <>
+              <h3>位次变更</h3>
+              <Table size="small" rowKey={(r) => `${r.queue_id}-${r.executor_id}`} dataSource={detail.record.changes}
+                pagination={false} columns={[
+                  { title: '队列', dataIndex: 'queue_id', ellipsis: true },
+                  { title: '原', dataIndex: 'old_position', width: 50 },
+                  { title: '新', dataIndex: 'new_position', width: 50 },
+                  { title: '动作', dataIndex: 'action' },
+                ]} />
+            </>
+          ) : null}
+        </>
+      )}
     </div>
   )
 }
@@ -338,6 +386,25 @@ function DispatchDrawer({ open, onClose, shopId, queues, executors, taskTypes, o
   const [queue, setQueue] = useState<string | undefined>()
   const [task, setTask] = useState<string | undefined>()
 
+  const reset = () => { setStep(0); setStaff(undefined); setQueue(undefined); setTask(undefined) }
+
+  // Derive the source queue from the executor's primary queue: dispatch must
+  // start from a queue the executor actually belongs to. Keep only enabled
+  // queues so a disabled primary falls back to the first enabled one.
+  const staffOptions = executors.map((e) => ({
+    value: e.public_id,
+    label: `${e.code} · ${e.display_name}`,
+    primary: e.primary_queue_id,
+  }))
+  const initialQueueFor = (staffId: string | undefined) => {
+    if (!staffId) return undefined
+    const primary = staffOptions.find((e) => e.value === staffId)?.primary
+    const enabled = queues.filter((q) => q.enabled)
+    if (primary && enabled.some((q) => q.public_id === primary)) return primary
+    return undefined
+  }
+  const pickStaff = (v: string) => { setStaff(v); setQueue(initialQueueFor(v)) }
+
   const mut = useMutation({
     mutationFn: () => {
       const body: DispatchRequest = {
@@ -349,11 +416,11 @@ function DispatchDrawer({ open, onClose, shopId, queues, executors, taskTypes, o
       }
       return schedulingApi.dispatch(shopId, body)
     },
-    onSuccess: (res) => { setStep(0); onDispatched(res.data) },
+    // Reset all steps on success so the next open starts clean.
+    onSuccess: (res) => { reset(); onDispatched(res.data) },
     onError: (e) => message.error((e as Error).message ?? '派单失败'),
   })
 
-  const reset = () => { setStep(0); setStaff(undefined); setQueue(undefined); setTask(undefined) }
   const close = () => { reset(); onClose() }
 
   return (
@@ -377,9 +444,8 @@ function DispatchDrawer({ open, onClose, shopId, queues, executors, taskTypes, o
         <div className={step === 2 ? 'ds-active' : ''}>3 · 确认任务</div>
       </div>
       {step === 0 ? (
-        <Select showSearch placeholder="选择执行者" value={staff} onChange={setStaff}
-          style={{ width: '100%' }} optionFilterProp="label"
-          options={executors.map((e) => ({ value: e.public_id, label: `${e.code} · ${e.display_name}` }))} />
+        <Select showSearch placeholder="选择执行者" value={staff} onChange={pickStaff}
+          style={{ width: '100%' }} optionFilterProp="label" options={staffOptions} />
       ) : null}
       {step === 1 ? (
         <Select placeholder="选择来源队列" value={queue} onChange={setQueue} style={{ width: '100%' }}
@@ -387,8 +453,10 @@ function DispatchDrawer({ open, onClose, shopId, queues, executors, taskTypes, o
       ) : null}
       {step === 2 ? (
         <div className="page-stack">
-          <p>执行者：{executors.find((e) => e.public_id === staff)?.display_name}</p>
-          <p>队列：{queues.find((q) => q.public_id === queue)?.name}</p>
+          <p>执行者：{staffOptions.find((e) => e.value === staff)?.label ?? '—'}</p>
+          <p>来源队列：{queues.find((q) => q.public_id === queue)
+            ? `${queues.find((q) => q.public_id === queue)!.seq} · ${queues.find((q) => q.public_id === queue)!.name}`
+            : '—'}</p>
           <Select placeholder="选择任务类型" value={task} onChange={setTask} style={{ width: '100%' }}
             options={taskTypes} />
           <Alert type="info" showIcon message="确认后一次事务内完成判定、联动与审计" />

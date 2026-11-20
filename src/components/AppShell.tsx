@@ -66,6 +66,9 @@ export default function AppShell() {
         breakpoint="lg"
         collapsed={collapsed}
         onBreakpoint={setCollapsed}
+        // AntD renders a floating zero-width trigger that overlaps the page
+        // title when collapsed. The header nav-toggle is the single control.
+        trigger={null}
       >
         <div className="sider-brand">
           <span className="brand-mark">P</span>

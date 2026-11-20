@@ -58,8 +58,11 @@ export default function RulesPage() {
   if (q.isLoading) return <PageLoading />
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />
 
-  const patch = (i: number, v: Partial<RuleInput>) =>
-    setDraft((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...v } : r)))
+  // Locate by the stable rule type, never by the sorted row index: the table
+  // renders a sorted copy, so a positional index would edit the wrong rule
+  // once the user changes an order value.
+  const patch = (type: RuleType, v: Partial<RuleInput>) =>
+    setDraft((prev) => prev.map((r) => (r.type === type ? { ...r, ...v } : r)))
 
   return (
     <div className="page-stack">
@@ -96,26 +99,26 @@ export default function RulesPage() {
         </div>
       ) : (
         <Table<RuleInput>
-          rowKey={(r) => `${r.type}-${r.order}`}
+          rowKey={(r) => r.type}
           dataSource={[...draft].sort((a, b) => a.order - b.order)}
           pagination={false}
           size="small"
           columns={[
-            { title: '顺序', dataIndex: 'order', width: 80, render: (v: number, _r, i) =>
+            { title: '顺序', dataIndex: 'order', width: 80, render: (v: number, r) =>
               <InputNumber min={1} value={v} size="small"
-                onChange={(n) => patch(i, { order: n ?? 1 })} /> },
+                onChange={(n) => patch(r.type, { order: n ?? 1 })} /> },
             { title: '判定步骤', dataIndex: 'type', render: (v: RuleType) => TYPE_LABEL[v] ?? v },
-            { title: '启用', dataIndex: 'enabled', width: 80, render: (v: boolean, _r, i) =>
-              <Switch size="small" checked={v} onChange={(on) => patch(i, { enabled: on })} /> },
-            { title: '作用域', dataIndex: 'scope', width: 120, render: (v: ScopeLevel, _r, i) =>
+            { title: '启用', dataIndex: 'enabled', width: 80, render: (v: boolean, r) =>
+              <Switch size="small" checked={v} onChange={(on) => patch(r.type, { enabled: on })} /> },
+            { title: '作用域', dataIndex: 'scope', width: 120, render: (v: ScopeLevel, r) =>
               <Select size="small" value={v} style={{ width: 108 }}
-                onChange={(s) => patch(i, { scope: s })}
+                onChange={(s) => patch(r.type, { scope: s })}
                 options={Object.entries(SCOPE_LABEL).map(([value, label]) => ({ value, label }))} /> },
-            { title: '命中动作', dataIndex: 'on_hit', width: 110, render: (v: Decision, _r, i) =>
+            { title: '命中动作', dataIndex: 'on_hit', width: 110, render: (v: Decision, r) =>
               <Select size="small" value={v} style={{ width: 96 }}
-                onChange={(d) => patch(i, { on_hit: d })}
+                onChange={(d) => patch(r.type, { on_hit: d })}
                 options={[{ value: 'hold', label: '保持' }, { value: 'rotate', label: '轮转' }]} /> },
-            { title: '生效时段', dataIndex: 'time_window', width: 190, render: (v: SchedulingRule['time_window'], _r, i) => {
+            { title: '生效时段', dataIndex: 'time_window', width: 190, render: (v: SchedulingRule['time_window'], r) => {
               if (!v) return <Tag>全天</Tag>
               return (
                 <Space size={2}>
@@ -123,7 +126,7 @@ export default function RulesPage() {
                     value={[dayjs(`2000-01-01 ${v.start}`, 'YYYY-MM-DD HH:mm'),
                       dayjs(`2000-01-01 ${v.end}`, 'YYYY-MM-DD HH:mm')]}
                     format="HH:mm"
-                    onChange={(vals) => patch(i, {
+                    onChange={(vals) => patch(r.type, {
                       time_window: vals && vals[0] && vals[1]
                         ? { start: vals[0].format('HH:mm'), end: vals[1].format('HH:mm') }
                         : null,
@@ -131,8 +134,8 @@ export default function RulesPage() {
                 </Space>
               )
             } },
-            { title: '不轮转', dataIndex: 'no_rotation', width: 90, render: (v: boolean, _r, i) =>
-              <Switch size="small" checked={v} onChange={(on) => patch(i, { no_rotation: on })} /> },
+            { title: '不轮转', dataIndex: 'no_rotation', width: 90, render: (v: boolean, r) =>
+              <Switch size="small" checked={v} onChange={(on) => patch(r.type, { no_rotation: on })} /> },
           ]}
         />
       )}
