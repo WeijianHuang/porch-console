@@ -1,13 +1,14 @@
 /** 8-step decision chain configuration (ADR-0012 / design/12). */
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, InputNumber, Select, Space, Switch, Table, Tag, TimePicker, message } from 'antd'
+import { Button, InputNumber, Popconfirm, Select, Space, Switch, Table, Tag, TimePicker, message } from 'antd'
 import dayjs from 'dayjs'
 import PageHeader from '../components/PageHeader'
 import { ErrorState, PageLoading } from '../components/RequestState'
 import { schedulingApi } from '../api/scheduling'
 import { queryKeys } from '../api/keys'
 import { useShopStore } from '../stores/shopStore'
+import { defaultRules } from '../shop/defaultRules'
 import type { Decision, RuleInput, RuleType, SchedulingRule, ScopeLevel } from '../api/types'
 
 const TYPE_LABEL: Record<RuleType, string> = {
@@ -68,6 +69,16 @@ export default function RulesPage() {
         description="8 步可配置，命中即停。作用域优先级：执行者 > 队列 > 任务类型 > 站点 > 全局。"
         actions={
           <Space>
+            {draft.length > 0 && (
+              <Popconfirm
+                title="载入默认 8 步判定链？"
+                description="将覆盖当前草稿（未发布），确认后仍需点「发布新版本」才会写入站点。"
+                okText="载入" cancelText="取消"
+                onConfirm={() => setDraft(defaultRules())}
+              >
+                <Button>载入默认规则</Button>
+              </Popconfirm>
+            )}
             <Button onClick={() => setDraft(q.data?.data.map((r) => ({
               type: r.type, order: r.order, enabled: r.enabled, scope: r.scope,
               scope_id: r.scope_id, on_hit: r.on_hit, time_window: r.time_window,
@@ -79,7 +90,10 @@ export default function RulesPage() {
         }
       />
       {draft.length === 0 ? (
-        <div className="panel"><p className="muted">当前站点尚未初始化 8 步判定链规则。发布后即时生效。</p></div>
+        <div className="panel rule-empty">
+          <p className="muted">当前站点尚未初始化 8 步判定链规则。可载入推荐默认链，按需调整后发布即生效。</p>
+          <Button type="primary" onClick={() => setDraft(defaultRules())}>载入默认规则</Button>
+        </div>
       ) : (
         <Table<RuleInput>
           rowKey={(r) => `${r.type}-${r.order}`}

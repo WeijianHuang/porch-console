@@ -576,6 +576,15 @@ textarea {
   box-shadow: var(--shadow-sm);
 }
 
+.rule-empty {
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.rule-empty .muted {
+  margin-bottom: 18px;
+}
+
 .panel > .ant-card-head {
   min-height: 56px;
   padding: 0 22px;
