@@ -738,19 +738,20 @@ function MatrixRow({
                 dropOn(staffId, event.dataTransfer.getData('text/plain'))
               }}
             >
-              <span className="staff-position">{index + 1}</span>
-              <Avatar
-                size={34}
-                style={{ backgroundColor: member.duty_status === 'on' ? accent : '#b7c3bb', flexShrink: 0 }}
-              >
-                {member.display_name.slice(0, 1)}
-              </Avatar>
+              <span className="matrix-avatar">
+                <Avatar
+                  size={26}
+                  style={{ backgroundColor: member.duty_status === 'on' ? accent : '#b7c3bb', flexShrink: 0 }}
+                >
+                  {member.display_name.slice(0, 1)}
+                </Avatar>
+                <span className="matrix-pos" aria-label={`位次 ${index + 1}`}>{index + 1}</span>
+              </span>
               <div className="matrix-card-body">
-                <div className="staff-card-name">{member.display_name}</div>
-                <div className="staff-card-meta">
-                  <span className={`pill ${member.duty_status === 'on' ? 'on' : 'off'}`}>
-                    {member.duty_status === 'on' ? '在岗' : '下班'}
-                  </span>
+                <div className="staff-card-name" title={member.display_name}>{member.display_name}</div>
+                <div className="matrix-card-meta">
+                  <span className={`matrix-dot${member.duty_status === 'on' ? ' on' : ''}`} />
+                  <span>{member.duty_status === 'on' ? '在岗' : '下班'}</span>
                   {code ? <span className="staff-card-code">{code}</span> : null}
                 </div>
               </div>
