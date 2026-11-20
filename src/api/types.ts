@@ -185,7 +185,7 @@ export interface StaffQueueRef {
   pin_type: string
 }
 
-/** `GET /staff` projection (porch-os ADR-0013): state + every membership. */
+/** `GET /staff` projection (porch-os ADR-0015): state + every membership. */
 export interface StaffSummary extends Staff {
   state: ExecutorState | string
   stop_rotation: boolean

@@ -1,5 +1,5 @@
 /**
- * Staff wall (porch-os ADR-0013 / design/13). Cards are coloured by the
+ * Staff wall (porch-os ADR-0015 / design/13). Cards are coloured by the
  * scheduling state bucket; clicking a card opens the operator menu (state,
  * position, hold, rotation). Every action maps to a real endpoint — nothing is
  * emulated in the browser.

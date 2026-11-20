@@ -1887,7 +1887,7 @@ textarea {
 }
 
 /* ==========================================================================
-   Staff status wall (ADR-0013 / design/13)
+   Staff status wall (ADR-0015 / design/13)
    Status buckets are the single colour source: the wall, the queue people
    view and the dispatch board all read these custom properties.
    ========================================================================== */

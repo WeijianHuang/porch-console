@@ -1,5 +1,5 @@
 /**
- * Staff status buckets (porch-os ADR-0013 / design/13). The engine keeps 11
+ * Staff status buckets (porch-os ADR-0015 / design/13). The engine keeps 11
  * `executor_state` values; the console folds them into 7 coloured buckets plus
  * a neutral one so a card is readable at a glance. This module is the single
  * source for that mapping — the staff wall, the queue people view and the

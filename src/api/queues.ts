@@ -72,7 +72,7 @@ export const staffApi = {
     ),
   remove: (shopId: string, staffId: string) =>
     api.delete(`${base(shopId)}/staff/${encodeURIComponent(staffId)}`, { shopId }),
-  /** Operator controls (porch-os ADR-0013). State is the scheduling state, not
+  /** Operator controls (porch-os ADR-0015). State is the scheduling state, not
    * the employment status; the server validates the manual transition. */
   setState: (shopId: string, staffId: string, body: SetStaffStateRequest) =>
     api.post<ApiEnvelope<StaffSummary>>(
