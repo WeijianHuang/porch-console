@@ -45,7 +45,7 @@ export default function App() {
   if (status === 'loading') {
     return (
       <div className="boot-screen">
-        <Spin size="large" tip="正在恢复会话…" />
+        <Spin size="large" description="正在恢复会话…" />
       </div>
     )
   }

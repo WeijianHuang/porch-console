@@ -58,6 +58,7 @@ export default function AuditPage() {
             <Table<AuditEntry>
               rowKey="public_id"
               size="small"
+              scroll={{ x: 960 }}
               dataSource={auditQ.data?.data ?? []}
               pagination={{ pageSize: 12 }}
               columns={[
@@ -69,8 +70,9 @@ export default function AuditPage() {
                 { title: '对象', dataIndex: 'target_type', render: (v: string) => v.replace('scheduling.', '') },
                 { title: '事件', dataIndex: 'target_id', render: (v: string) => v || '—' },
                 { title: '操作者', dataIndex: 'operator', render: (v: string) => v || '—' },
-                { title: '明细', dataIndex: 'payload', render: (v: Record<string, unknown>) =>
-                  <code>{JSON.stringify(v)}</code> },
+                { title: '明细', dataIndex: 'payload', width: 320,
+                  render: (v: Record<string, unknown>) =>
+                    <code className="audit-payload">{JSON.stringify(v ?? {})}</code> },
               ]}
             />
           </section>

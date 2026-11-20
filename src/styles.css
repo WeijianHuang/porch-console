@@ -600,6 +600,23 @@ textarea {
   font-size: 16px;
   font-weight: 600;
 }
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+}
+.panel-head h2,
+.panel-head h3 {
+  margin: 0;
+  color: var(--ink-900);
+  font-size: 15px;
+  font-weight: 600;
+}
+.panel-head h3 {
+  font-size: 13px;
+}
 
 .stat-strip {
   display: grid;
@@ -1482,6 +1499,17 @@ textarea {
 .action-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
 .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
 .metric-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line, #e5e9ec); font-size: 13px; }
+.rule-alert { margin-bottom: 16px; }
+.rule-table .ant-table-cell { vertical-align: middle; }
+.scheduling-drawer .ant-drawer-content-wrapper { max-width: 100vw; }
+.dispatch-field { display: flex; flex-direction: column; gap: 8px; color: var(--ink-700); font-size: 13px; }
+.tooltip-wrap { display: inline-flex; }
+.action-controls { justify-content: flex-end; }
+.insert-position { color: var(--ink-600); font-size: 12px; }
+.audit-payload {
+  display: block; max-width: 300px; overflow-wrap: anywhere; white-space: normal;
+  font-size: 11px; line-height: 1.6;
+}
 
 /* ==========================================================================
    Responsive
@@ -1532,5 +1560,55 @@ textarea {
   }
   .people-search {
     width: 100%;
+  }
+  /* Scheduling console: keep controls reachable instead of compressing them. */
+  .board-lanes,
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  .board-toolbar,
+  .dispatch-steps {
+    flex-wrap: wrap;
+  }
+  .detail-facts {
+    grid-template-columns: 72px 1fr;
+  }
+  .action-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .action-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .scheduling-drawer .ant-drawer-body {
+    padding: 16px;
+  }
+  /* Header must keep the shop switcher and account chip from overlapping. */
+  .app-header {
+    gap: 8px;
+    padding: 0 12px;
+  }
+  .header-context {
+    flex: 0 1 auto;
+  }
+  .header-eyebrow {
+    display: none;
+  }
+  .header-shop {
+    width: 132px;
+    min-width: 112px;
+    flex: 0 1 132px;
+  }
+  .user-chip {
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+  .user-chip > span:not(.ant-avatar) {
+    max-width: 64px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

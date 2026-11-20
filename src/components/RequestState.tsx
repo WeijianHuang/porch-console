@@ -5,7 +5,7 @@ import type { ApiError } from '../api/errors'
 export function PageLoading() {
   return (
     <div className="state-block">
-      <Spin tip="加载中…" />
+      <Spin description="加载中…" />
     </div>
   )
 }
@@ -18,7 +18,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
         <Alert
           type="error"
           showIcon
-          message={detail?.message ?? '加载失败'}
+          title={detail?.message ?? '加载失败'}
           description={
             <div>
               {detail?.code ? <span className="muted">错误码：{detail.code}</span> : null}
