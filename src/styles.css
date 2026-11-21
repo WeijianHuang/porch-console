@@ -2295,3 +2295,213 @@ textarea {
     white-space: nowrap;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Square service slots (porch-os ADR-0017 / design/14).
+
+   The dispatch board and the queue matrix render one square per staff member:
+   name, state, remaining minutes (reserved for the order domain) and the ID
+   card name. A fixed square keeps dense lanes readable; the three board
+   densities map to three square sizes.
+   --------------------------------------------------------------------------- */
+
+.lane-members,
+.matrix-row-body {
+  --slot-size: var(--card-min, 208px);
+  grid-template-columns: repeat(auto-fill, minmax(var(--slot-size), 1fr));
+}
+.board-lanes[data-density='compact'] { --slot-size: 148px; }
+.board-lanes[data-density='medium']  { --slot-size: 208px; }
+.board-lanes[data-density='loose']   { --slot-size: 264px; }
+
+.position-card,
+.matrix-card {
+  position: relative;
+  display: block;
+  aspect-ratio: 1 / 1;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--b-line, var(--line));
+  border-left: 3px solid var(--b-fg, var(--forest-600));
+  border-radius: 12px;
+  background: var(--b-bg, var(--surface));
+  transition: box-shadow 0.16s ease, border-color 0.16s ease;
+}
+.position-card:hover,
+.matrix-card:hover {
+  border-color: var(--b-fg, #2f8a68);
+  box-shadow: var(--shadow-sm);
+}
+.position-card[data-actionable='true'],
+.matrix-card[data-actionable='true'] {
+  cursor: pointer;
+}
+
+.service-slot {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 12px;
+  color: var(--ink-800, #18342a);
+}
+.service-slot.is-compact {
+  gap: 2px;
+  padding: 8px 9px 10px;
+}
+.slot-head {
+  display: flex;
+  min-height: 22px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.slot-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.slot-pos {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: var(--b-fg, var(--forest-600));
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.slot-head .ant-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 12px;
+}
+.slot-name {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.service-slot.is-compact .slot-name { font-size: 13px; }
+.slot-state {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 20px;
+}
+.slot-state-pill {
+  display: inline-flex;
+  padding: 2px 8px;
+  border: 1px solid var(--b-line, var(--line));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--b-fg, var(--forest-700));
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.slot-off {
+  color: var(--ink-500, #6b7c74);
+  font-size: 11px;
+}
+.slot-remaining,
+.slot-card {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+  padding-top: 3px;
+  border-top: 1px dashed var(--b-line, var(--line));
+  font-size: 12px;
+}
+.slot-remaining strong {
+  color: var(--ink-800, #18342a);
+  font-variant-numeric: tabular-nums;
+}
+.slot-line-label {
+  flex: 0 0 auto;
+  color: var(--ink-500, #6b7c74);
+  font-size: 10px;
+}
+.slot-card-name {
+  overflow: hidden;
+  color: var(--forest-700, #1f6b4f);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slot-card-empty,
+.slot-code {
+  color: var(--ink-400, #93a39b);
+  font-size: 11px;
+}
+.slot-code {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+}
+
+@media (max-width: 700px) {
+  .matrix-row-body { --slot-size: 132px; }
+  .service-slot { padding: 8px; }
+  .slot-name { font-size: 13px; }
+}
+
+/* ID card administration (/cards, ADR-0017). */
+.card-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.card-admin-item {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--forest-500, #2f8a68);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.card-admin-item[data-status='inactive'] {
+  border-left-color: var(--ink-400, #93a39b);
+  opacity: 0.78;
+}
+.card-admin-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.card-admin-head .ant-tag { margin-inline-end: 0; }
+.card-admin-code {
+  color: var(--ink-500, #6b7c74);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+.card-admin-holder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.staff-card-id-card {
+  padding: 1px 6px;
+  border: 1px solid var(--b-line, var(--line));
+  border-radius: 999px;
+  background: var(--b-bg, rgba(255,255,255,0.8));
+  color: var(--b-fg, var(--forest-700));
+  font-size: 10px;
+  white-space: nowrap;
+}

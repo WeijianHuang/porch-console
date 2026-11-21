@@ -185,12 +185,54 @@ export interface StaffQueueRef {
   pin_type: string
 }
 
+/** ID card projection on board/staff rows (porch-os ADR-0017). */
+export interface CardRef {
+  public_id: string
+  code: string
+  name: string
+}
+
+export interface CardHolder {
+  public_id: string
+  display_name: string
+  held_from: string
+}
+
+export interface IdCard extends CardRef {
+  status: 'active' | 'inactive' | string
+  version: number
+  holder: CardHolder | null
+}
+
+export interface CreateCardRequest {
+  code: string
+  name: string
+  status?: 'active' | 'inactive'
+}
+
+export interface UpdateCardRequest {
+  name?: string
+  status?: 'active' | 'inactive'
+  version: number
+}
+
+export interface HoldCardRequest {
+  staff_id: string
+  reason?: string
+}
+
+export interface ReleaseCardRequest {
+  reason?: string
+}
+
 /** `GET /staff` projection (porch-os ADR-0015): state + every membership. */
 export interface StaffSummary extends Staff {
   state: ExecutorState | string
   stop_rotation: boolean
   primary_queue_id: string
   queues: StaffQueueRef[]
+  id_card: CardRef | null
+  service_remaining_minutes: number | null
 }
 
 export interface SetStaffStateRequest {
@@ -293,6 +335,8 @@ export interface BoardMember {
   duty_status: string
   state: string
   is_primary: boolean
+  id_card: CardRef | null
+  service_remaining_minutes: number | null
 }
 
 export interface BoardExecutor {
@@ -303,6 +347,8 @@ export interface BoardExecutor {
   state: string
   primary_queue_id: string
   stop_rotation: boolean
+  id_card: CardRef | null
+  service_remaining_minutes: number | null
 }
 
 export interface SchedulingBoard {

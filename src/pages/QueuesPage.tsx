@@ -16,6 +16,7 @@ import type {
 } from '../api/types'
 import PageHeader from '../components/PageHeader'
 import StaffActionProvider from '../components/StaffActionProvider'
+import ServiceSlot from '../components/ServiceSlot'
 import { EmptyHint, ErrorState, PageLoading } from '../components/RequestState'
 import { hasPermission, useAuthStore } from '../stores/authStore'
 import { useShopStore } from '../stores/shopStore'
@@ -456,6 +457,9 @@ function PeopleBoard({
                     {person.duty_status === 'on' ? '在岗' : '离岗'}
                   </span>
                   <span className="queue-lane-count">{queueRefs.length} 个队列</span>
+                  <span className="staff-card-id-card" title={person.id_card ? `${person.id_card.name} · ${person.id_card.code}` : '未绑定 ID 卡'}>
+                    {person.id_card ? person.id_card.name : '未绑卡'}
+                  </span>
                 </div>
                 <div className="staff-queue-chips">
                   {detailQuery?.isPending ? <span className="queue-lane-empty">所属队列加载中…</span> : null}
@@ -680,6 +684,9 @@ function QueueLane({
                     {member.duty_status === 'on' ? '在岗' : '离岗'}
                   </span>
                   {code ? <span className="staff-card-code">{code}</span> : null}
+                  {summary?.id_card ? (
+                    <span className="staff-card-id-card" title={summary.id_card.name}>{summary.id_card.name}</span>
+                  ) : null}
                 </div>
               </div>
               {canWrite ? (
@@ -764,8 +771,7 @@ function MatrixRow({
           const index = order.indexOf(staffId)
           const card = (
             <article
-              className={`matrix-card${member.duty_status === 'on' ? '' : ' off-duty'}`}
-              data-bucket={summary ? bucketOf(summary.state) : undefined}
+              className="matrix-card"
               data-actionable={summary ? 'true' : undefined}
               draggable={canWrite}
               title={canWrite ? '拖动调整顺序，点击打开操作菜单' : '点击打开操作菜单'}
@@ -776,37 +782,30 @@ function MatrixRow({
                 dropOn(staffId, event.dataTransfer.getData('text/plain'))
               }}
             >
-              <span className="matrix-avatar">
-                <Avatar
-                  size={26}
-                  style={{ backgroundColor: member.duty_status === 'on' ? accent : '#b7c3bb', flexShrink: 0 }}
-                >
-                  {member.display_name.slice(0, 1)}
-                </Avatar>
-                <span className="matrix-pos" aria-label={`位次 ${index + 1}`}>{index + 1}</span>
-              </span>
-              <div className="matrix-card-body">
-                <div className="staff-card-name" title={member.display_name}>{member.display_name}</div>
-                <div className="matrix-card-meta">
-                  <span className={`matrix-dot${member.duty_status === 'on' ? ' on' : ''}`} />
-                  <span>{member.duty_status === 'on' ? '在岗' : '离岗'}</span>
-                  {code ? <span className="staff-card-code">{code}</span> : null}
-                </div>
-              </div>
-              {canWrite ? (
-                <div className="matrix-card-actions">
-                  <Button
-                    type="text" size="small" title="前移" aria-label={`前移 ${member.display_name}`}
-                    disabled={reordering || index === 0}
-                    onClick={(event) => { event.stopPropagation(); move(staffId, -1) }}
-                  >←</Button>
-                  <Button
-                    type="text" size="small" title="后移" aria-label={`后移 ${member.display_name}`}
-                    disabled={reordering || index === order.length - 1}
-                    onClick={(event) => { event.stopPropagation(); move(staffId, 1) }}
-                  >→</Button>
-                </div>
-              ) : null}
+              <ServiceSlot
+                name={member.display_name}
+                code={code}
+                state={summary?.state ?? 'standby'}
+                position={index + 1}
+                duty={member.duty_status}
+                idCard={summary?.id_card}
+                remainingMinutes={summary?.service_remaining_minutes}
+                bucket={summary ? bucketOf(summary.state) : undefined}
+                actions={canWrite ? (
+                  <>
+                    <Button
+                      type="text" size="small" title="前移" aria-label={`前移 ${member.display_name}`}
+                      disabled={reordering || index === 0}
+                      onClick={(event) => { event.stopPropagation(); move(staffId, -1) }}
+                    >←</Button>
+                    <Button
+                      type="text" size="small" title="后移" aria-label={`后移 ${member.display_name}`}
+                      disabled={reordering || index === order.length - 1}
+                      onClick={(event) => { event.stopPropagation(); move(staffId, 1) }}
+                    >→</Button>
+                  </>
+                ) : undefined}
+              />
             </article>
           )
           if (!summary) return <Fragment key={staffId}>{card}</Fragment>

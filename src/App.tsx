@@ -5,6 +5,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppShell from './components/AppShell'
 import AuditPage from './pages/AuditPage'
 import BoardPage from './pages/BoardPage'
+import CardsPage from './pages/CardsPage'
 import CatalogPage from './pages/CatalogPage'
 import LinkagePage from './pages/LinkagePage'
 import LoginPage from './pages/LoginPage'
@@ -72,6 +73,7 @@ export default function App() {
             <Route path="/queues" element={<QueuesPage />} />
             <Route path="/staff" element={<StaffPage />} />
             <Route path="/rooms" element={<RoomsPage />} />
+            <Route path="/cards" element={<CardsPage />} />
             <Route path="/board" element={<BoardPage />} />
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/linkage" element={<LinkagePage />} />

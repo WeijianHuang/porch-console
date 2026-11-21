@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons'
 import PageHeader from '../components/PageHeader'
 import StaffActionProvider from '../components/StaffActionProvider'
+import ServiceSlot from '../components/ServiceSlot'
 import { ErrorState, PageLoading } from '../components/RequestState'
 import { schedulingApi } from '../api/scheduling'
 import { staffApi } from '../api/queues'
@@ -26,7 +27,7 @@ import type {
 } from '../api/types'
 import { formatUTC8 } from '../utils/datetime'
 import { useStaffActionMenu } from '../shop/staffActionContext'
-import { bucketOf, stateLabel } from '../shop/staffStatus'
+import { bucketOf } from '../shop/staffStatus'
 
 /**
  * Two real sources for the detail drawer:
@@ -245,47 +246,45 @@ function BoardView() {
                   ) : members.map((m) => {
                     const summary = staffByPublicId.get(m.executor_id)
                     const cardKey = `${m.queue_id}-${m.executor_id}`
+                    const pinAction = (
+                      <Tooltip title={m.pin_type === 'none' ? '置顶到队首' : '解除置顶'}>
+                        <Button
+                          size="small" type="text"
+                          icon={m.pin_type === 'none' ? <ArrowRightOutlined /> : <RestOutlined />}
+                          disabled={busy}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            pinMut.mutate({ queue_id: m.queue_id, staff_id: m.executor_id, pin: m.pin_type === 'none' })
+                          }}
+                        />
+                      </Tooltip>
+                    )
                     const card = (
                       <div
-                        className={`position-card ${m.pin_type !== 'none' ? 'is-pinned' : ''}`}
-                        data-bucket={bucketOf(m.state)}
+                        className="position-card"
                         data-actionable={summary ? 'true' : undefined}
                       >
-                        <span className="pos-number">{m.position}</span>
-                        <div className="pos-main">
-                          <div className="pos-name">
-                            <strong>{m.display_name}</strong>
-                            {m.is_primary ? <span className="pos-primary-dot" title="主队列" aria-label="主队列" /> : null}
-                            {m.is_primary ? <Tag color="green" className="pos-primary-tag">主队列</Tag> : null}
-                            {m.pin_type !== 'none' ? <Tag color="gold" className="pos-pin-tag">置顶</Tag> : null}
-                          </div>
-                          <div className="pos-meta">
-                            <span className="pos-code muted">{m.code}</span>
-                            <span className="staff-state-pill">{stateLabel(m.state)}</span>
-                            {m.duty_status === 'off' ? <Tag className="pos-off-tag">离岗</Tag> : null}
-                          </div>
-                        </div>
-                        <div className="pos-actions">
-                          {m.pin_type === 'none' ? (
-                            <Tooltip title="置顶到队首">
-                              <Button size="small" type="text" icon={<ArrowRightOutlined />}
-                                disabled={busy}
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  pinMut.mutate({ queue_id: m.queue_id, staff_id: m.executor_id, pin: true })
-                                }} />
-                            </Tooltip>
-                          ) : (
-                            <Tooltip title="解除置顶">
-                              <Button size="small" type="text" icon={<RestOutlined />}
-                                disabled={busy}
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  pinMut.mutate({ queue_id: m.queue_id, staff_id: m.executor_id, pin: false })
-                                }} />
-                            </Tooltip>
+                        <ServiceSlot
+                          name={m.display_name}
+                          code={m.code}
+                          state={m.state}
+                          position={m.position}
+                          duty={m.duty_status}
+                          idCard={m.id_card}
+                          remainingMinutes={m.service_remaining_minutes}
+                          bucket={bucketOf(m.state)}
+                          primary={m.is_primary}
+                          pinned={m.pin_type !== 'none'}
+                          compact={boardDensity === 'compact'}
+                          corner={(
+                            <>
+                              {m.is_primary ? <span className="pos-primary-dot" title="主队列" aria-label="主队列" /> : null}
+                              {m.is_primary ? <Tag color="green" className="pos-primary-tag">主队列</Tag> : null}
+                              {m.pin_type !== 'none' ? <Tag color="gold" className="pos-pin-tag">置顶</Tag> : null}
+                            </>
                           )}
-                        </div>
+                          actions={pinAction}
+                        />
                       </div>
                     )
                     // Without a staff summary the menu has no memberships to act

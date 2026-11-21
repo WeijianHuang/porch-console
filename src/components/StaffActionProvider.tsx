@@ -9,15 +9,16 @@
  * Every item maps to a real endpoint; nothing is emulated locally.
  */
 import { useCallback, useState, type ReactNode } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Button, Form, Input, InputNumber, Modal, Radio, Select, Space, Tag, message,
 } from 'antd'
 import type { MenuProps } from 'antd'
 import { queryKeys } from '../api/keys'
 import { staffApi } from '../api/queues'
+import { cardsApi } from '../api/cards'
 import { schedulingApi } from '../api/scheduling'
-import type { StaffSummary } from '../api/types'
+import type { IdCard, StaffSummary } from '../api/types'
 import { EmptyHint } from './RequestState'
 import { sortQueueRefs } from '../shop/queueSort'
 import {
@@ -52,6 +53,7 @@ export default function StaffActionProvider({
     void queryClient.invalidateQueries({ queryKey: queryKeys.queues(shopId) })
     void queryClient.invalidateQueries({ queryKey: queryKeys.schedulingBoard(shopId) })
     void queryClient.invalidateQueries({ queryKey: queryKeys.schedulingEvents(shopId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.cards(shopId) })
   }, [queryClient, shopId])
 
   const setState = useMutation({
@@ -97,7 +99,31 @@ export default function StaffActionProvider({
     onError: (error) => message.error((error as Error).message || '移动位次失败'),
   })
 
-  const busy = setState.isPending || setRotation.isPending || pin.isPending || moveStaff.isPending
+  // ADR-0017: card list for the per-staff binding submenu. Read-only here;
+  // full card administration lives on /cards.
+  const cardsQ = useQuery({
+    queryKey: queryKeys.cards(shopId),
+    queryFn: () => cardsApi.list(shopId),
+  })
+
+  const bindCard = useMutation({
+    mutationFn: ({ cardId, staffId }: { cardId: string; staffId: string }) =>
+      cardsApi.hold(shopId, cardId, { staff_id: staffId }),
+    onSuccess: (res) => {
+      message.success(`已绑定「${res.data.name}」`)
+      invalidate()
+    },
+    onError: (error) => message.error((error as Error).message || '绑定卡片失败'),
+  })
+  const unbindCard = useMutation({
+    mutationFn: (cardId: string) =>
+      cardsApi.release(shopId, cardId, { reason: 'console' }),
+    onSuccess: () => { message.success('已解除 ID 卡'); invalidate() },
+    onError: (error) => message.error((error as Error).message || '解绑失败'),
+  })
+
+  const busy = setState.isPending || setRotation.isPending || pin.isPending ||
+    moveStaff.isPending || bindCard.isPending || unbindCard.isPending
 
   const onMenu = (staff: StaffSummary, cardKey: string, key: string) => {
     setOpenFor((current) => nextOpenMenu(current, cardKey, false))
@@ -107,6 +133,14 @@ export default function StaffActionProvider({
     }
     if (key === 'detail') {
       setDetail(staff)
+      return
+    }
+    if (key === 'card:unbind') {
+      if (staff.id_card) unbindCard.mutate(staff.id_card.public_id)
+      return
+    }
+    if (key.startsWith('card:')) {
+      bindCard.mutate({ cardId: key.slice('card:'.length), staffId: staff.public_id })
       return
     }
     if (key.startsWith('state:')) {
@@ -151,6 +185,26 @@ export default function StaffActionProvider({
     })
   }
 
+  const cardItems = (staff: StaffSummary): MenuProps['items'] => {
+    const items: NonNullable<MenuProps['items']> = []
+    if (staff.id_card) {
+      items.push({ key: 'card:unbind', label: `解除绑定 · ${staff.id_card.name}` })
+    }
+    const cards = (cardsQ.data?.data ?? []) as IdCard[]
+    for (const card of cards) {
+      if (card.status !== 'active' || card.holder) continue
+      items.push({ key: `card:${card.public_id}`, label: `绑定 · ${card.name}（${card.code}）` })
+    }
+    if (items.length === 0) {
+      items.push({
+        key: 'card:none',
+        label: cards.length === 0 ? '尚未建档，请到 ID 卡管理创建' : '暂无可绑定的卡片',
+        disabled: true,
+      })
+    }
+    return items
+  }
+
   const menuItems = (staff: StaffSummary, options?: { queueId?: string }): MenuProps['items'] => [
     {
       key: 'state',
@@ -174,6 +228,12 @@ export default function StaffActionProvider({
       label: '留位',
       disabled: !canSchedule || busy || staff.queues.length === 0,
       children: queueItems(staff, options, 'pin'),
+    },
+    {
+      key: 'card',
+      label: staff.id_card ? `ID 卡（${staff.id_card.name}）` : '绑定 ID 卡',
+      disabled: !canWrite || busy,
+      children: cardItems(staff),
     },
     { type: 'divider' },
     {
