@@ -358,7 +358,15 @@ textarea {
 }
 
 .app-sider {
-  position: relative !important;
+  /* Keep the nav rail pinned while the workspace scrolls. The document is the
+     scroll container, so sticky+top:0 pins it; align-self:flex-start stops the
+     flex row from stretching it to the tall content (which would break sticky),
+     and viewport height + its own overflow keeps the rail self-scrollable. */
+  position: sticky !important;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  overflow-y: auto;
   z-index: 20;
   background: linear-gradient(180deg, var(--forest-800) 0%, var(--forest-900) 100%) !important;
   box-shadow: 2px 0 16px rgba(11, 42, 32, 0.12);
