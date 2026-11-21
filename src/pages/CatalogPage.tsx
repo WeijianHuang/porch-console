@@ -18,6 +18,7 @@ interface CatalogFormValues {
   name: string
   type?: 'product' | 'service'
   base_price: string
+  duration_minutes?: string
   active?: boolean
   version?: number
 }
@@ -27,6 +28,7 @@ export default function CatalogPage() {
   const permissions = useAuthStore((state) => state.permissions)
   const canWrite = hasPermission(permissions, 'catalog.write')
   const [form] = Form.useForm<CatalogFormValues>()
+  const formType = Form.useWatch('type', form)
   const [editing, setEditing] = useState<CatalogItem | null>(null)
   const [open, setOpen] = useState(false)
   const { data, error, isPending, refetch } = useQuery({
@@ -48,6 +50,7 @@ export default function CatalogPage() {
       base_price: item.base_price,
       active: item.active,
       version: item.version,
+      duration_minutes: item.duration_minutes == null ? undefined : String(item.duration_minutes),
     })
     setOpen(true)
   }
@@ -57,6 +60,19 @@ export default function CatalogPage() {
       message.error('请输入合法的金额')
       return
     }
+    // ADR-0018: service items require an integer in 1..1440 minutes;
+    // product items carry no duration.
+    const effectiveType = editing?.type ?? values.type ?? 'product'
+    const rawDuration = values.duration_minutes?.trim() ?? ''
+    let duration: number | undefined
+    if (effectiveType === 'service') {
+      const n = Number(rawDuration)
+      if (!rawDuration || !Number.isInteger(n) || n < 1 || n > 1440) {
+        message.error('服务项时长须为 1–1440 之间的整数分钟')
+        return
+      }
+      duration = n
+    }
     try {
       if (editing) {
         await catalogApi.update(editing.public_id, {
@@ -64,6 +80,7 @@ export default function CatalogPage() {
           base_price: values.base_price,
           active: Boolean(values.active),
           version: Number(values.version ?? editing.version),
+          ...(duration != null ? { duration_minutes: duration } : {}),
         })
       } else {
         await catalogApi.create({
@@ -71,6 +88,7 @@ export default function CatalogPage() {
           name: values.name,
           type: values.type ?? 'product',
           base_price: values.base_price,
+          ...(duration != null ? { duration_minutes: duration } : {}),
         })
       }
       setOpen(false)
@@ -144,6 +162,18 @@ export default function CatalogPage() {
               ),
             },
             {
+              title: '时长',
+              dataIndex: 'duration_minutes',
+              width: 110,
+              align: 'right',
+              render: (value: number | null, item: CatalogItem) =>
+                item.type === 'service' && value != null ? (
+                  <span className="cell-money">{value} 分钟</span>
+                ) : (
+                  <span className="muted">—</span>
+                ),
+            },
+            {
               title: '基础价',
               dataIndex: 'base_price',
               width: 120,
@@ -209,6 +239,15 @@ export default function CatalogPage() {
             >
               <Input placeholder="例如 19.90" />
             </Form.Item>
+            {(editing?.type ?? formType) === 'service' ? (
+              <Form.Item
+                label="时长（分钟）"
+                name="duration_minutes"
+                extra="服务项必填，取值 1–1440；商品项不填。"
+              >
+                <Input placeholder="例如 30" inputMode="numeric" />
+              </Form.Item>
+            ) : null}
             {editing ? (
               <Space>
                 <Form.Item label="上架" name="active">

@@ -104,6 +104,7 @@ export interface CatalogItem {
   name: string
   type: 'product' | 'service' | string
   base_price: string
+  duration_minutes: number | null
   active: boolean
   version: number
   created_at: string
@@ -115,6 +116,7 @@ export interface CreateCatalogItemRequest {
   name: string
   type: 'product' | 'service'
   base_price: string
+  duration_minutes?: number
 }
 
 export interface UpdateCatalogItemRequest {
@@ -122,6 +124,7 @@ export interface UpdateCatalogItemRequest {
   base_price: string
   active: boolean
   version: number
+  duration_minutes?: number
 }
 
 export interface UpdateShopRequest {
