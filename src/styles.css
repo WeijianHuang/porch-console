@@ -2081,8 +2081,28 @@ textarea {
   font-size: 11px;
   opacity: 0.7;
 }
-.staff-detail-queue {
-  margin-inline-end: 0;
+.staff-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Cards that open the operator menu advertise it the same way on every page. */
+.staff-card[data-actionable='true'],
+.matrix-card[data-actionable='true'],
+.person-card[data-actionable='true'],
+.position-card[data-actionable='true'] {
+  cursor: pointer;
+}
+.queue-staff-list .staff-card[data-actionable='true']:hover,
+.matrix-card[data-actionable='true']:hover {
+  border-color: var(--b-fg, var(--forest-600));
+  box-shadow: var(--shadow-sm);
+}
+.person-card[data-actionable='true']:hover,
+.position-card[data-actionable='true']:hover {
+  box-shadow: var(--shadow-sm);
 }
 
 /* The queue people view reuses the bucket tint on its existing cards. */

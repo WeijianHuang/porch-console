@@ -3,25 +3,29 @@
  * from the server; mutations go through command endpoints. The console holds
  * only UI filter state. Site switching re-keys all queries via X-Shop-Id.
  */
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Alert, Button, Drawer, Empty, Popconfirm, Segmented, Select, Space, Table, Tag, Tooltip, message,
+  Alert, Button, Drawer, Dropdown, Empty, Popconfirm, Segmented, Select, Space, Table, Tag, Tooltip, message,
 } from 'antd'
 import {
   ArrowRightOutlined, CheckCircleOutlined, ClockCircleOutlined,
   PlusOutlined, ReloadOutlined, RestOutlined, StopOutlined,
 } from '@ant-design/icons'
 import PageHeader from '../components/PageHeader'
+import StaffActionProvider from '../components/StaffActionProvider'
 import { ErrorState, PageLoading } from '../components/RequestState'
 import { schedulingApi } from '../api/scheduling'
+import { staffApi } from '../api/queues'
 import { queryKeys } from '../api/keys'
 import { useShopStore } from '../stores/shopStore'
+import { hasPermission, useAuthStore } from '../stores/authStore'
 import { useBoardDensity, type BoardDensity } from '../stores/boardDensity'
 import type {
-  BoardMember, DecisionRecord, DispatchRequest, SchedulingEvent,
+  BoardMember, DecisionRecord, DispatchRequest, SchedulingEvent, StaffSummary,
 } from '../api/types'
 import { formatUTC8 } from '../utils/datetime'
+import { useStaffActionMenu } from '../shop/staffActionContext'
 import { bucketOf, stateLabel } from '../shop/staffStatus'
 
 /**
@@ -36,6 +40,22 @@ type DecisionDetail =
 
 export default function BoardPage() {
   const shopId = useShopStore((s) => s.currentShopId)
+  const permissions = useAuthStore((s) => s.permissions)
+  const canWrite = hasPermission(permissions, 'queue.write')
+  const canSchedule = hasPermission(permissions, 'scheduling.write')
+
+  if (!shopId) return <EmptyHintShop />
+
+  return (
+    <StaffActionProvider shopId={shopId} canWrite={canWrite} canSchedule={canSchedule}>
+      <BoardView />
+    </StaffActionProvider>
+  )
+}
+
+function BoardView() {
+  const shopId = useShopStore((s) => s.currentShopId)
+  const { menuProps } = useStaffActionMenu()
   const boardDensity = useBoardDensity((s) => s.boardDensity)
   const setBoardDensity = useBoardDensity((s) => s.setBoardDensity)
   const qc = useQueryClient()
@@ -56,6 +76,13 @@ export default function BoardPage() {
   const tasksQ = useQuery({
     queryKey: queryKeys.schedulingTaskTypes(shopId ?? ''),
     queryFn: () => schedulingApi.taskTypes(shopId!),
+    enabled: !!shopId,
+  })
+  // Board members carry state but not memberships; the operator menu needs the
+  // full summary, so read the staff list alongside the board.
+  const staffQ = useQuery({
+    queryKey: queryKeys.staff(shopId ?? ''),
+    queryFn: () => staffApi.list(shopId!),
     enabled: !!shopId,
   })
 
@@ -97,6 +124,11 @@ export default function BoardPage() {
   const busy = pinMut.isPending || releaseMut.isPending || actionMut.isPending || methodMut.isPending
 
   const board = boardQ.data?.data
+  const staffByPublicId = useMemo(() => {
+    const m = new Map<string, StaffSummary>()
+    for (const item of staffQ.data?.data ?? []) m.set(item.public_id, item)
+    return m
+  }, [staffQ.data])
   const membersByQueue = useMemo(() => {
     const m = new Map<string, BoardMember[]>()
     for (const member of board?.members ?? []) {
@@ -210,43 +242,62 @@ export default function BoardPage() {
                 <div className="lane-members">
                   {members.length === 0 ? (
                     <div className="lane-empty">暂无执行者</div>
-                  ) : members.map((m) => (
-                    <div
-                      className={`position-card ${m.pin_type !== 'none' ? 'is-pinned' : ''}`}
-                      data-bucket={bucketOf(m.state)}
-                      key={`${m.queue_id}-${m.executor_id}`}
-                    >
-                      <span className="pos-number">{m.position}</span>
-                      <div className="pos-main">
-                        <div className="pos-name">
-                          <strong>{m.display_name}</strong>
-                          {m.is_primary ? <span className="pos-primary-dot" title="主队列" aria-label="主队列" /> : null}
-                          {m.is_primary ? <Tag color="green" className="pos-primary-tag">主队列</Tag> : null}
-                          {m.pin_type !== 'none' ? <Tag color="gold" className="pos-pin-tag">置顶</Tag> : null}
+                  ) : members.map((m) => {
+                    const summary = staffByPublicId.get(m.executor_id)
+                    const cardKey = `${m.queue_id}-${m.executor_id}`
+                    const card = (
+                      <div
+                        className={`position-card ${m.pin_type !== 'none' ? 'is-pinned' : ''}`}
+                        data-bucket={bucketOf(m.state)}
+                        data-actionable={summary ? 'true' : undefined}
+                      >
+                        <span className="pos-number">{m.position}</span>
+                        <div className="pos-main">
+                          <div className="pos-name">
+                            <strong>{m.display_name}</strong>
+                            {m.is_primary ? <span className="pos-primary-dot" title="主队列" aria-label="主队列" /> : null}
+                            {m.is_primary ? <Tag color="green" className="pos-primary-tag">主队列</Tag> : null}
+                            {m.pin_type !== 'none' ? <Tag color="gold" className="pos-pin-tag">置顶</Tag> : null}
+                          </div>
+                          <div className="pos-meta">
+                            <span className="pos-code muted">{m.code}</span>
+                            <span className="staff-state-pill">{stateLabel(m.state)}</span>
+                            {m.duty_status === 'off' ? <Tag className="pos-off-tag">离岗</Tag> : null}
+                          </div>
                         </div>
-                        <div className="pos-meta">
-                          <span className="pos-code muted">{m.code}</span>
-                          <span className="staff-state-pill">{stateLabel(m.state)}</span>
-                          {m.duty_status === 'off' ? <Tag className="pos-off-tag">离岗</Tag> : null}
+                        <div className="pos-actions">
+                          {m.pin_type === 'none' ? (
+                            <Tooltip title="置顶到队首">
+                              <Button size="small" type="text" icon={<ArrowRightOutlined />}
+                                disabled={busy}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  pinMut.mutate({ queue_id: m.queue_id, staff_id: m.executor_id, pin: true })
+                                }} />
+                            </Tooltip>
+                          ) : (
+                            <Tooltip title="解除置顶">
+                              <Button size="small" type="text" icon={<RestOutlined />}
+                                disabled={busy}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  pinMut.mutate({ queue_id: m.queue_id, staff_id: m.executor_id, pin: false })
+                                }} />
+                            </Tooltip>
+                          )}
                         </div>
                       </div>
-                      <div className="pos-actions">
-                        {m.pin_type === 'none' ? (
-                          <Tooltip title="置顶到队首">
-                            <Button size="small" type="text" icon={<ArrowRightOutlined />}
-                              disabled={busy}
-                              onClick={() => pinMut.mutate({ queue_id: m.queue_id, staff_id: m.executor_id, pin: true })} />
-                          </Tooltip>
-                        ) : (
-                          <Tooltip title="解除置顶">
-                            <Button size="small" type="text" icon={<RestOutlined />}
-                              disabled={busy}
-                              onClick={() => pinMut.mutate({ queue_id: m.queue_id, staff_id: m.executor_id, pin: false })} />
-                          </Tooltip>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                    // Without a staff summary the menu has no memberships to act
+                    // on, so the card stays read-only rather than opening an
+                    // empty menu.
+                    if (!summary) return <Fragment key={cardKey}>{card}</Fragment>
+                    return (
+                      <Dropdown key={cardKey} {...menuProps(summary, { queueId: m.queue_id })}>
+                        {card}
+                      </Dropdown>
+                    )
+                  })}
                 </div>
               </section>
             )

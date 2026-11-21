@@ -10,6 +10,7 @@ export function sortQueueViews(items: QueueView[]): QueueView[] {
   return sortBySeq(items)
 }
 
-export function sortQueueRefs(items: QueueRef[]): QueueRef[] {
+/** Generic over the ref shape so callers keep their extra fields (position, pin_type). */
+export function sortQueueRefs<T extends QueueRef>(items: T[]): T[] {
   return sortBySeq(items)
 }

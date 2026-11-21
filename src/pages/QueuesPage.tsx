@@ -1,11 +1,11 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { Fragment, useEffect, useState, type CSSProperties } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AppstoreOutlined, CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined,
   PlusOutlined, SearchOutlined, TableOutlined, TeamOutlined,
 } from '@ant-design/icons'
 import {
-  Avatar, Button, Card, Checkbox, Form, Input, InputNumber, Modal,
+  Avatar, Button, Card, Checkbox, Dropdown, Form, Input, InputNumber, Modal,
   Segmented, Space, Typography, message,
 } from 'antd'
 import { useNavigate } from 'react-router-dom'
@@ -15,10 +15,12 @@ import type {
   CreateQueueRequest, QueueDetail, QueueView, StaffDetail, StaffSummary,
 } from '../api/types'
 import PageHeader from '../components/PageHeader'
+import StaffActionProvider from '../components/StaffActionProvider'
 import { EmptyHint, ErrorState, PageLoading } from '../components/RequestState'
 import { hasPermission, useAuthStore } from '../stores/authStore'
 import { useShopStore } from '../stores/shopStore'
 import { sortQueueRefs, sortQueueViews } from '../shop/queueSort'
+import { useStaffActionMenu } from '../shop/staffActionContext'
 import { bucketOf, stateLabel } from '../shop/staffStatus'
 
 interface QueueForm {
@@ -37,6 +39,7 @@ export default function QueuesPage() {
   const shopId = useShopStore((state) => state.currentShopId)
   const permissions = useAuthStore((state) => state.permissions)
   const canWrite = hasPermission(permissions, 'queue.write')
+  const canSchedule = hasPermission(permissions, 'scheduling.write')
   const [form] = Form.useForm<QueueForm>()
   const [open, setOpen] = useState(false)
   const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null)
@@ -144,189 +147,191 @@ export default function QueuesPage() {
   const onDuty = assigned.filter((member) => member.duty_status === 'on').length
 
   return (
-    <div className="page">
-      <PageHeader
-        eyebrow="Workspace / Queues"
-        title="队列看板"
-        description={
-          view === 'queues'
-            ? '队列多、服务员少：按队列横向排列，拖动卡片或使用箭头调整队列内顺序。'
-            : view === 'staff'
-              ? '服务员多、队列少：按人员网格排列，可筛选在岗状态并查看每人所属队列。'
-              : '队列纵向堆叠、人员横向成行：同时纵览多条队列并逐行查看成员。'
-        }
-        actions={
-          <Space wrap>
-            <Segmented<BoardView>
-              value={view}
-              onChange={setView}
-              options={[
-                { value: 'queues', label: '队列视图', icon: <AppstoreOutlined /> },
-                { value: 'staff', label: '人员视图', icon: <TeamOutlined /> },
-                { value: 'matrix', label: '矩阵视图', icon: <TableOutlined /> },
-              ]}
-            />
-            <Button icon={<TeamOutlined />} onClick={() => navigate('/staff')}>
-              服务人员
-            </Button>
-            {canWrite ? (
-              <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-                新建队列
+    <StaffActionProvider shopId={shopId} canWrite={canWrite} canSchedule={canSchedule}>
+      <div className="page">
+        <PageHeader
+          eyebrow="Workspace / Queues"
+          title="队列看板"
+          description={
+            view === 'queues'
+              ? '队列多、服务员少：按队列横向排列，拖动卡片或使用箭头调整队列内顺序。'
+              : view === 'staff'
+                ? '服务员多、队列少：按人员网格排列，可筛选在岗状态并查看每人所属队列。'
+                : '队列纵向堆叠、人员横向成行：同时纵览多条队列并逐行查看成员。'
+          }
+          actions={
+            <Space wrap>
+              <Segmented<BoardView>
+                value={view}
+                onChange={setView}
+                options={[
+                  { value: 'queues', label: '队列视图', icon: <AppstoreOutlined /> },
+                  { value: 'staff', label: '人员视图', icon: <TeamOutlined /> },
+                  { value: 'matrix', label: '矩阵视图', icon: <TableOutlined /> },
+                ]}
+              />
+              <Button icon={<TeamOutlined />} onClick={() => navigate('/staff')}>
+                服务人员
               </Button>
-            ) : null}
-          </Space>
-        }
-      />
-
-      <div className="stat-strip">
-        <div className="stat-tile">
-          <span className="stat-icon"><CalendarOutlined /></span>
-          <div className="stat-text">
-            <div className="stat-label">队列数量</div>
-            <div className="stat-value">{queueViews.length}</div>
-          </div>
-        </div>
-        <div className="stat-tile">
-          <span className="stat-icon slate"><TeamOutlined /></span>
-          <div className="stat-text">
-            <div className="stat-label">已分配人员</div>
-            <div className="stat-value">{assigned.length}</div>
-          </div>
-        </div>
-        <div className="stat-tile">
-          <span className="stat-icon"><CheckCircleOutlined /></span>
-          <div className="stat-text">
-            <div className="stat-label">在岗</div>
-            <div className="stat-value">{onDuty}</div>
-          </div>
-        </div>
-        <div className="stat-tile">
-          <span className="stat-icon amber"><ClockCircleOutlined /></span>
-          <div className="stat-text">
-            <div className="stat-label">离岗</div>
-            <div className="stat-value">{assigned.length - onDuty}</div>
-          </div>
-        </div>
-      </div>
-
-      <Card className="panel">
-        {view === 'queues' ? (
-          queueViews.length === 0 ? (
-            <EmptyHint>该门店还没有队列{canWrite ? '，点击右上角新建' : ''}</EmptyHint>
-          ) : (
-            <div className="queue-board">
-              {queueViews.map((queue, index) => {
-                const detailQuery = detailQueries[index]
-                return (
-                  <QueueLane
-                    key={queue.public_id}
-                    queue={queue}
-                    detail={detailQuery?.data?.data}
-                    loading={detailQuery?.isPending ?? false}
-                    error={detailQuery?.isError ?? false}
-                    staffByPublicId={staffByPublicId}
-                    canWrite={canWrite}
-                    reordering={reorder.isPending}
-                    onSubmitOrder={submitOrder}
-                    onManage={() => setSelectedQueueId(queue.public_id)}
-                  />
-                )
-              })}
               {canWrite ? (
-                <button type="button" className="queue-lane queue-lane-add" onClick={openCreate}>
-                  <span className="add-icon"><PlusOutlined /></span>
-                  <strong>新建队列</strong>
-                  <span>为当前门店添加一条队列</span>
-                </button>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                  新建队列
+                </Button>
               ) : null}
+            </Space>
+          }
+        />
+
+        <div className="stat-strip">
+          <div className="stat-tile">
+            <span className="stat-icon"><CalendarOutlined /></span>
+            <div className="stat-text">
+              <div className="stat-label">队列数量</div>
+              <div className="stat-value">{queueViews.length}</div>
             </div>
-          )
-        ) : view === 'matrix' ? (
-          queueViews.length === 0 ? (
-            <EmptyHint>该门店还没有队列{canWrite ? '，点击右上角新建' : ''}</EmptyHint>
+          </div>
+          <div className="stat-tile">
+            <span className="stat-icon slate"><TeamOutlined /></span>
+            <div className="stat-text">
+              <div className="stat-label">已分配人员</div>
+              <div className="stat-value">{assigned.length}</div>
+            </div>
+          </div>
+          <div className="stat-tile">
+            <span className="stat-icon"><CheckCircleOutlined /></span>
+            <div className="stat-text">
+              <div className="stat-label">在岗</div>
+              <div className="stat-value">{onDuty}</div>
+            </div>
+          </div>
+          <div className="stat-tile">
+            <span className="stat-icon amber"><ClockCircleOutlined /></span>
+            <div className="stat-text">
+              <div className="stat-label">离岗</div>
+              <div className="stat-value">{assigned.length - onDuty}</div>
+            </div>
+          </div>
+        </div>
+
+        <Card className="panel">
+          {view === 'queues' ? (
+            queueViews.length === 0 ? (
+              <EmptyHint>该门店还没有队列{canWrite ? '，点击右上角新建' : ''}</EmptyHint>
+            ) : (
+              <div className="queue-board">
+                {queueViews.map((queue, index) => {
+                  const detailQuery = detailQueries[index]
+                  return (
+                    <QueueLane
+                      key={queue.public_id}
+                      queue={queue}
+                      detail={detailQuery?.data?.data}
+                      loading={detailQuery?.isPending ?? false}
+                      error={detailQuery?.isError ?? false}
+                      staffByPublicId={staffByPublicId}
+                      canWrite={canWrite}
+                      reordering={reorder.isPending}
+                      onSubmitOrder={submitOrder}
+                      onManage={() => setSelectedQueueId(queue.public_id)}
+                    />
+                  )
+                })}
+                {canWrite ? (
+                  <button type="button" className="queue-lane queue-lane-add" onClick={openCreate}>
+                    <span className="add-icon"><PlusOutlined /></span>
+                    <strong>新建队列</strong>
+                    <span>为当前门店添加一条队列</span>
+                  </button>
+                ) : null}
+              </div>
+            )
+          ) : view === 'matrix' ? (
+            queueViews.length === 0 ? (
+              <EmptyHint>该门店还没有队列{canWrite ? '，点击右上角新建' : ''}</EmptyHint>
+            ) : (
+              <div className="matrix-board">
+                {queueViews.map((queue, index) => {
+                  const detailQuery = detailQueries[index]
+                  return (
+                    <MatrixRow
+                      key={queue.public_id}
+                      queue={queue}
+                      detail={detailQuery?.data?.data}
+                      loading={detailQuery?.isPending ?? false}
+                      error={detailQuery?.isError ?? false}
+                      staffByPublicId={staffByPublicId}
+                      canWrite={canWrite}
+                      reordering={reorder.isPending}
+                      onSubmitOrder={submitOrder}
+                      onManage={() => setSelectedQueueId(queue.public_id)}
+                    />
+                  )
+                })}
+              </div>
+            )
           ) : (
-            <div className="matrix-board">
-              {queueViews.map((queue, index) => {
-                const detailQuery = detailQueries[index]
-                return (
-                  <MatrixRow
-                    key={queue.public_id}
-                    queue={queue}
-                    detail={detailQuery?.data?.data}
-                    loading={detailQuery?.isPending ?? false}
-                    error={detailQuery?.isError ?? false}
-                    staffByPublicId={staffByPublicId}
-                    canWrite={canWrite}
-                    reordering={reorder.isPending}
-                    onSubmitOrder={submitOrder}
-                    onManage={() => setSelectedQueueId(queue.public_id)}
-                  />
-                )
-              })}
-            </div>
-          )
-        ) : (
-          <PeopleBoard
+            <PeopleBoard
+              shopId={shopId}
+              staff={staff}
+              detailQueries={staffDetailQueries}
+              queues={queueViews}
+              canWrite={canWrite}
+              dutyFilter={dutyFilter}
+              search={search}
+              onDutyFilterChange={setDutyFilter}
+              onSearchChange={setSearch}
+              onManage={setManagedStaffId}
+              onChanged={invalidate}
+            />
+          )}
+
+          <Modal
+            title="新建队列"
+            open={open}
+            onCancel={() => setOpen(false)}
+            onOk={() => form.submit()}
+            confirmLoading={createQueue.isPending}
+            okText="创建"
+            cancelText="取消"
+          >
+            <Form form={form} layout="vertical" onFinish={submit}>
+              <Form.Item
+                name="seq"
+                label="序号"
+                rules={[{ required: true, message: '请输入序号' }]}
+                extra="同一门店内序号唯一，从 1 开始"
+              >
+                <InputNumber min={1} precision={0} style={{ width: '100%' }} />
+              </Form.Item>
+              <Form.Item
+                name="name"
+                label="名称"
+                rules={[{ required: true, message: '请输入名称' }, { whitespace: true, message: '名称不能为空' }]}
+              >
+                <Input maxLength={60} placeholder="例如：一号队列" />
+              </Form.Item>
+            </Form>
+          </Modal>
+
+          <StaffQueueModal
             shopId={shopId}
-            staff={staff}
-            detailQueries={staffDetailQueries}
+            staffDetail={managedDetail}
             queues={queueViews}
-            canWrite={canWrite}
-            dutyFilter={dutyFilter}
-            search={search}
-            onDutyFilterChange={setDutyFilter}
-            onSearchChange={setSearch}
-            onManage={setManagedStaffId}
+            onClose={() => setManagedStaffId(null)}
             onChanged={invalidate}
           />
-        )}
 
-        <Modal
-          title="新建队列"
-          open={open}
-          onCancel={() => setOpen(false)}
-          onOk={() => form.submit()}
-          confirmLoading={createQueue.isPending}
-          okText="创建"
-          cancelText="取消"
-        >
-          <Form form={form} layout="vertical" onFinish={submit}>
-            <Form.Item
-              name="seq"
-              label="序号"
-              rules={[{ required: true, message: '请输入序号' }]}
-              extra="同一门店内序号唯一，从 1 开始"
-            >
-              <InputNumber min={1} precision={0} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item
-              name="name"
-              label="名称"
-              rules={[{ required: true, message: '请输入名称' }, { whitespace: true, message: '名称不能为空' }]}
-            >
-              <Input maxLength={60} placeholder="例如：一号队列" />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        <StaffQueueModal
-          shopId={shopId}
-          staffDetail={managedDetail}
-          queues={queueViews}
-          onClose={() => setManagedStaffId(null)}
-          onChanged={invalidate}
-        />
-
-        <QueueAssignModal
-          shopId={shopId}
-          queue={detail}
-          staff={staff}
-          canWrite={canWrite}
-          onClose={() => setSelectedQueueId(null)}
-          onChanged={invalidate}
-        />
-      </Card>
-    </div>
+          <QueueAssignModal
+            shopId={shopId}
+            queue={detail}
+            staff={staff}
+            canWrite={canWrite}
+            onClose={() => setSelectedQueueId(null)}
+            onChanged={invalidate}
+          />
+        </Card>
+      </div>
+    </StaffActionProvider>
   )
 }
 
@@ -355,6 +360,7 @@ function PeopleBoard({
   shopId, staff, detailQueries, queues, canWrite, dutyFilter, search,
   onDutyFilterChange, onSearchChange, onManage, onChanged,
 }: PeopleBoardProps) {
+  const { menuProps } = useStaffActionMenu()
   const setDuty = useMutation({
     mutationFn: ({ person, duty }: { person: StaffSummary; duty: 'on' | 'off' }) =>
       staffApi.update(shopId, person.public_id, {
@@ -409,11 +415,11 @@ function PeopleBoard({
             const index = staff.findIndex((item) => item.public_id === person.public_id)
             const detailQuery = detailQueries[index]
             const queueRefs = sortQueueRefs(detailQuery?.data?.data?.queues ?? [])
-            return (
+            const card = (
               <article
                 className="entity-card person-card"
                 data-bucket={bucketOf(person.state)}
-                key={person.public_id}
+                data-actionable="true"
               >
                 <div className="entity-card-head">
                   <Avatar size={42} className="entity-avatar" style={{ backgroundColor: 'transparent', color: 'inherit' }}>
@@ -429,10 +435,13 @@ function PeopleBoard({
                       type={person.duty_status === 'on' ? 'default' : 'primary'}
                       loading={setDuty.isPending}
                       title={person.duty_status === 'on' ? '点击将该人员置为离岗' : '点击将该人员置为在岗'}
-                      onClick={() => setDuty.mutate({
-                        person,
-                        duty: person.duty_status === 'on' ? 'off' : 'on',
-                      })}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        setDuty.mutate({
+                          person,
+                          duty: person.duty_status === 'on' ? 'off' : 'on',
+                        })
+                      }}
                     >
                       {person.duty_status === 'on' ? '设为离岗' : '设为在岗'}
                     </Button>
@@ -464,12 +473,20 @@ function PeopleBoard({
                 <div className="entity-card-foot">
                   <span className="queue-lane-count">共 {queues.length} 个队列可用</span>
                   {canWrite ? (
-                    <Button type="link" onClick={() => onManage(person.public_id)}>
+                    <Button
+                      type="link"
+                      onClick={(event) => { event.stopPropagation(); onManage(person.public_id) }}
+                    >
                       管理队列
                     </Button>
                   ) : null}
                 </div>
               </article>
+            )
+            return (
+              <Dropdown key={person.public_id} {...menuProps(person)}>
+                {card}
+              </Dropdown>
             )
           })}
         </div>
@@ -605,6 +622,7 @@ function QueueLane({
   queue, detail, loading, error, staffByPublicId, canWrite, reordering, onSubmitOrder, onManage,
 }: QueueLaneProps) {
   const { order, members, move, dropOn } = useStaffOrder({ queue, detail, canWrite, onSubmitOrder })
+  const { menuProps } = useStaffActionMenu()
   const accent = laneAccents[(queue.seq - 1) % laneAccents.length]
 
   return (
@@ -634,13 +652,13 @@ function QueueLane({
           const summary = staffByPublicId.get(staffId)
           const code = summary?.code
           const index = order.indexOf(staffId)
-          return (
+          const card = (
             <article
-              key={staffId}
               className={`staff-card${member.duty_status === 'on' ? '' : ' off-duty'}`}
               data-bucket={summary ? bucketOf(summary.state) : undefined}
+              data-actionable={summary ? 'true' : undefined}
               draggable={canWrite}
-              title={canWrite ? '拖动调整队列内顺序' : undefined}
+              title={canWrite ? '拖动调整顺序，点击打开操作菜单' : '点击打开操作菜单'}
               onDragStart={(event) => event.dataTransfer.setData('text/plain', staffId)}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
@@ -672,7 +690,7 @@ function QueueLane({
                     title="上移"
                     aria-label={`上移 ${member.display_name}`}
                     disabled={reordering || index === 0}
-                    onClick={() => move(staffId, -1)}
+                    onClick={(event) => { event.stopPropagation(); move(staffId, -1) }}
                   >
                     ↑
                   </Button>
@@ -682,13 +700,21 @@ function QueueLane({
                     title="下移"
                     aria-label={`下移 ${member.display_name}`}
                     disabled={reordering || index === order.length - 1}
-                    onClick={() => move(staffId, 1)}
+                    onClick={(event) => { event.stopPropagation(); move(staffId, 1) }}
                   >
                     ↓
                   </Button>
                 </div>
               ) : null}
             </article>
+          )
+          // The menu needs the full summary (state, memberships); without it
+          // the card still renders, it just is not clickable.
+          if (!summary) return <Fragment key={staffId}>{card}</Fragment>
+          return (
+            <Dropdown key={staffId} {...menuProps(summary, { queueId: queue.public_id })}>
+              {card}
+            </Dropdown>
           )
         })}
       </div>
@@ -707,6 +733,7 @@ function MatrixRow({
   queue, detail, loading, error, staffByPublicId, canWrite, reordering, onSubmitOrder, onManage,
 }: MatrixRowProps) {
   const { order, members, move, dropOn } = useStaffOrder({ queue, detail, canWrite, onSubmitOrder })
+  const { menuProps } = useStaffActionMenu()
   const accent = laneAccents[(queue.seq - 1) % laneAccents.length]
 
   return (
@@ -735,13 +762,13 @@ function MatrixRow({
           const summary = staffByPublicId.get(staffId)
           const code = summary?.code
           const index = order.indexOf(staffId)
-          return (
+          const card = (
             <article
-              key={staffId}
               className={`matrix-card${member.duty_status === 'on' ? '' : ' off-duty'}`}
               data-bucket={summary ? bucketOf(summary.state) : undefined}
+              data-actionable={summary ? 'true' : undefined}
               draggable={canWrite}
-              title={canWrite ? '拖动调整队列内顺序' : undefined}
+              title={canWrite ? '拖动调整顺序，点击打开操作菜单' : '点击打开操作菜单'}
               onDragStart={(event) => event.dataTransfer.setData('text/plain', staffId)}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
@@ -771,16 +798,22 @@ function MatrixRow({
                   <Button
                     type="text" size="small" title="前移" aria-label={`前移 ${member.display_name}`}
                     disabled={reordering || index === 0}
-                    onClick={() => move(staffId, -1)}
+                    onClick={(event) => { event.stopPropagation(); move(staffId, -1) }}
                   >←</Button>
                   <Button
                     type="text" size="small" title="后移" aria-label={`后移 ${member.display_name}`}
                     disabled={reordering || index === order.length - 1}
-                    onClick={() => move(staffId, 1)}
+                    onClick={(event) => { event.stopPropagation(); move(staffId, 1) }}
                   >→</Button>
                 </div>
               ) : null}
             </article>
+          )
+          if (!summary) return <Fragment key={staffId}>{card}</Fragment>
+          return (
+            <Dropdown key={staffId} {...menuProps(summary, { queueId: queue.public_id })}>
+              {card}
+            </Dropdown>
           )
         })}
       </div>
