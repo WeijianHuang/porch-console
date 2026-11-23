@@ -10,6 +10,7 @@ import CatalogPage from './pages/CatalogPage'
 import LinkagePage from './pages/LinkagePage'
 import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
+import OrdersPage from './pages/OrdersPage'
 import QueuesPage from './pages/QueuesPage'
 import RoomsPage from './pages/RoomsPage'
 import RulesPage from './pages/RulesPage'
@@ -81,6 +82,7 @@ export default function App() {
             <Route path="/shops" element={<ShopsPage />} />
             <Route path="/shops/:shopId/settings" element={<ShopSettingsPage />} />
             <Route path="/catalog" element={<CatalogPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
           </Route>
           <Route path="/" element={<Navigate to="/queues" replace />} />
           <Route path="*" element={<NotFoundPage />} />

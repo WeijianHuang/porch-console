@@ -442,6 +442,36 @@ export interface SchedulingEvent {
   occurred_at: string
 }
 
+/** Orders (porch-os ADR-0013/0014/0016/0019, design/03 §8). Shop-scoped.
+ * Amounts are decimal strings; `paid/refunded/refundable` are derived on read
+ * and only present on the detail response (omitempty in the list projection). */
+export interface OrderLine {
+  line_no: number
+  catalog_item_id: string
+  item_name_snapshot: string
+  quantity: string
+  unit_price: string
+  amount: string
+}
+
+export interface Order {
+  public_id: string
+  order_no: string
+  status: string
+  member_id: string | null
+  shift_id: string | null
+  operator_id: number
+  total_amount: string
+  discount_amount: string
+  version: number
+  created_at: string
+  updated_at: string
+  lines?: OrderLine[]
+  paid_amount?: string
+  refunded_amount?: string
+  refundable_amount?: string
+}
+
 export interface AuditEntry {
   public_id: string
   action: string

@@ -7,6 +7,7 @@ import {
   CalendarOutlined,
   CreditCardOutlined,
   DashboardOutlined,
+  DollarOutlined,
   DownOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
@@ -33,6 +34,7 @@ const navItems = [
   { key: '/audit', label: '审计与指标', icon: <AuditOutlined /> },
   { key: '/shops', label: '门店列表', icon: <ShopOutlined /> },
   { key: '/catalog', label: '商品目录', icon: <AppstoreOutlined /> },
+  { key: '/orders', label: '订单列表', icon: <DollarOutlined /> },
 ]
 
 export default function AppShell() {

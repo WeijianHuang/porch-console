@@ -2513,3 +2513,46 @@ textarea {
   font-size: 10px;
   white-space: nowrap;
 }
+
+/* ==========================================================================
+   Orders list (porch-os R3 order domain)
+   ========================================================================== */
+.orders-more {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0 4px;
+}
+.order-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.order-amounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.order-amounts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.order-amounts span {
+  color: var(--ink-600);
+  font-size: 12px;
+}
+.order-amounts strong {
+  color: var(--ink-900);
+  font-size: 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.order-detail .panel-head {
+  padding-inline: 0;
+}
