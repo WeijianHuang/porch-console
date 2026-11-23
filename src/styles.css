@@ -2776,3 +2776,127 @@ textarea {
   font-family: var(--font-mono);
   font-size: 12px;
 }
+
+/* Room cards double as the order-entry trigger (frontend ADR-0006). An active
+   room card is a button, so it carries a real focus ring instead of only a
+   hover tint; inactive rooms stay visible but inert and say why. */
+.home-room-card {
+  position: relative;
+}
+.home-room-card.is-clickable {
+  cursor: pointer;
+}
+.home-room-card.is-clickable:hover {
+  border-color: var(--forest-500);
+}
+.home-room-card.is-clickable:focus-visible {
+  outline: 2px solid var(--forest-500);
+  outline-offset: 2px;
+}
+.home-room-action {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  color: var(--forest-700);
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.home-room-card.is-clickable:hover .home-room-action,
+.home-room-card.is-clickable:focus-visible .home-room-action {
+  opacity: 1;
+}
+.home-room-note {
+  color: var(--ink-500);
+  font-size: 12px;
+}
+
+/* Order entry modal (ADR-0006): room/card context, cart, estimate. */
+.entry-context {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.entry-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.entry-field > span {
+  color: var(--ink-600);
+  font-size: 12px;
+}
+.entry-note {
+  margin-bottom: 14px;
+}
+.entry-lines-head {
+  margin: 4px 0 8px;
+}
+.entry-lines-head h4 {
+  margin: 0;
+  color: var(--ink-900);
+  font-size: 14px;
+}
+.entry-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.entry-total strong {
+  color: var(--ink-900);
+  font-size: 20px;
+  font-weight: 650;
+}
+.entry-done .ant-alert {
+  margin-bottom: 16px;
+}
+.entry-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 18px;
+  margin: 0 0 18px;
+}
+.entry-summary > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.entry-summary dt {
+  color: var(--ink-600);
+  font-size: 12px;
+  min-width: 48px;
+}
+.entry-summary dd {
+  margin: 0;
+  color: var(--ink-900);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.entry-done-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.entry-pay-amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--mint-100);
+}
+.entry-pay-amount strong {
+  color: var(--forest-700);
+  font-size: 20px;
+  font-weight: 650;
+}

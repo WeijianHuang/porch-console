@@ -514,6 +514,33 @@ export interface OrderCompanionGroupRef {
   status: 'open' | 'closed' | 'cancelled' | string
 }
 
+/** Payment channels allowed by the schema CHECK (`00010_orders.sql`): real
+ * funds only. `balance` needs a member account and is not offered here. */
+export type PaymentMethod = 'cash' | 'card'
+
+export interface PaymentEntry {
+  method: PaymentMethod
+  amount: string
+}
+
+export interface Payment {
+  public_id: string
+  kind: string
+  order_id: string | null
+  member_id: string | null
+  status: string
+  amount: string
+  entries: PaymentEntry[]
+  paid_at?: string
+}
+
+/** `POST /orders/{id}/payments` returns the receipt together with the order as
+ * it stands after settlement (card already released, ADR-0022 §4). */
+export interface PaymentResult {
+  payment: Payment
+  order: Order
+}
+
 /** Companion groups (ADR-0022 §5). The group stores no amount and is never a
  * payment subject: totals are read-only derivations over member orders. */
 export interface CompanionMember {

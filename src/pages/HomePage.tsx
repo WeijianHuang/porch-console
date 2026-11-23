@@ -1,10 +1,10 @@
 /**
- * Home overview (frontend ADR-0005). A read-only landing page: the dispatch
- * board's queues on the left, the shop's rooms on the right. Nothing here writes
- * and nothing here is cached separately — it reuses the queue and room queries,
- * so a shop switch invalidates it through the same shop-scoped keys (ADR-0006).
+ * Home overview (frontend ADR-0005, amended by ADR-0006): the dispatch board's
+ * queues and the shop's rooms. Everything is read-only except one entry point —
+ * clicking an active room opens the order-entry modal, which then writes
+ * through the ordinary order endpoints.
  */
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import {
   ApartmentOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -15,10 +15,13 @@ import { useNavigate } from 'react-router-dom'
 import { queryKeys } from '../api/keys'
 import { queuesApi } from '../api/queues'
 import { roomsApi } from '../api/rooms'
+import type { Room } from '../api/types'
 import PageHeader from '../components/PageHeader'
+import OrderEntryModal from '../components/OrderEntryModal'
 import { EmptyHint, ErrorState, PageLoading } from '../components/RequestState'
 import { sortQueueViews } from '../shop/queueSort'
 import { floorLabel, groupByFloor } from '../shop/roomGroup'
+import { hasPermission, useAuthStore } from '../stores/authStore'
 import { useShopStore } from '../stores/shopStore'
 
 /** How many names fit in a queue card before the rest collapse into "+N". */
@@ -27,6 +30,15 @@ const MEMBER_PREVIEW = 6
 export default function HomePage() {
   const navigate = useNavigate()
   const shopId = useShopStore((state) => state.currentShopId)
+  const permissions = useAuthStore((state) => state.permissions)
+  const canWriteOrder = hasPermission(permissions, 'order.write')
+  const [entryRoom, setEntryRoom] = useState<Room | null>(null)
+  const [entryOpen, setEntryOpen] = useState(false)
+
+  const openEntry = (room: Room) => {
+    setEntryRoom(room)
+    setEntryOpen(true)
+  }
 
   const queuesQuery = useQuery({
     queryKey: queryKeys.queues(shopId ?? ''),
@@ -72,7 +84,7 @@ export default function HomePage() {
       <PageHeader
         eyebrow="Workspace / Home"
         title="首页"
-        description="当前门店的队列在列情况与房间状态一览；数据全部来自服务端，本页只读。"
+        description="当前门店的队列在列情况与房间状态一览；点击启用中的房间可直接开单，其余内容只读。"
         actions={
           <Space wrap>
             <Button icon={<DashboardOutlined />} onClick={() => navigate('/board')}>
@@ -195,24 +207,60 @@ export default function HomePage() {
           <EmptyHint>该门店还没有房间，可先到「房间管理」新建</EmptyHint>
         ) : (
           <div className="home-room-grid">
-            {rooms.map((room) => (
-              <article
-                className={`home-room-card ${room.status === 'active' ? '' : 'is-inactive'}`}
-                key={room.public_id}
-              >
-                <div className="home-room-name" title={room.name}>{room.name}</div>
-                <div className="home-room-meta">
-                  <span className="home-room-code">{room.code}</span>
-                  <span className="home-room-floor">{floorLabel(room.floor)}</span>
-                  <span className={`pill ${room.status === 'active' ? 'on' : 'off'}`}>
-                    {room.status === 'active' ? '启用' : '停用'}
-                  </span>
-                </div>
-              </article>
-            ))}
+            {rooms.map((room) => {
+              // Only an active room can be billed against (the backend rejects
+              // an inactive one with 409 ROOM_INACTIVE), so the card is inert
+              // instead of promising a modal that would fail on submit.
+              const bookable = canWriteOrder && room.status === 'active'
+              const hint = room.status !== 'active'
+                ? '房间已停用，不能开单'
+                : !canWriteOrder ? '没有开单权限' : ''
+              return (
+                <article
+                  className={[
+                    'home-room-card',
+                    room.status === 'active' ? '' : 'is-inactive',
+                    bookable ? 'is-clickable' : '',
+                  ].filter(Boolean).join(' ')}
+                  key={room.public_id}
+                  role={bookable ? 'button' : undefined}
+                  tabIndex={bookable ? 0 : undefined}
+                  aria-label={bookable ? `为房间 ${room.code} ${room.name} 开单` : undefined}
+                  onClick={bookable ? () => openEntry(room) : undefined}
+                  onKeyDown={bookable ? (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      openEntry(room)
+                    }
+                  } : undefined}
+                >
+                  <div className="home-room-name" title={room.name}>{room.name}</div>
+                  <div className="home-room-meta">
+                    <span className="home-room-code">{room.code}</span>
+                    <span className="home-room-floor">{floorLabel(room.floor)}</span>
+                    <span className={`pill ${room.status === 'active' ? 'on' : 'off'}`}>
+                      {room.status === 'active' ? '启用' : '停用'}
+                    </span>
+                  </div>
+                  {bookable ? (
+                    <span className="home-room-action">开单</span>
+                  ) : hint ? (
+                    <span className="home-room-note">{hint}</span>
+                  ) : null}
+                </article>
+              )
+            })}
           </div>
         )}
       </Card>
+
+      <OrderEntryModal
+        open={entryOpen}
+        shopId={shopId}
+        room={entryRoom}
+        onClose={() => setEntryOpen(false)}
+        onCreated={() => void roomsQuery.refetch()}
+      />
     </div>
   )
 }
