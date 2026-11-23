@@ -9,6 +9,7 @@ import {
   DashboardOutlined,
   DollarOutlined,
   DownOutlined,
+  HomeOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -24,6 +25,7 @@ import ShopSwitcher from './ShopSwitcher'
 const { Header, Sider, Content } = Layout
 
 const navItems = [
+  { key: '/home', label: '首页', icon: <HomeOutlined /> },
   { key: '/queues', label: '队列看板', icon: <CalendarOutlined /> },
   { key: '/staff', label: '服务人员', icon: <TeamOutlined /> },
   { key: '/rooms', label: '房间管理', icon: <ApartmentOutlined /> },
@@ -48,7 +50,7 @@ export default function AppShell() {
   const selected = [...navItems]
     .map((item) => item.key)
     .filter((key) => location.pathname.startsWith(key))
-    .sort((a, b) => b.length - a.length)[0] ?? '/queues'
+    .sort((a, b) => b.length - a.length)[0] ?? '/home'
 
   const today = new Date().toLocaleDateString('zh-CN', {
     month: 'long',

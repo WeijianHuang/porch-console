@@ -4,7 +4,7 @@
 
 Porch OS（[porch-os](https://github.com/WeijianHuang/porch-os)）的前端控制台：面向小微门店经营者的多店后台，负责门店切换、开单收银、会员、库存与报表。
 
-**状态：R1 前端已实现（2026-11-17）。** 技术栈已由 [ADR-0001](docs/decisions/0001-frontend-stack-and-r1-scope.md) 定稿：全新技术栈 React + TypeScript + Vite + TanStack Query + React Router + Ant Design + Zustand + Vitest；与既有内部工程零源码复用，工程名称不写入公开仓库。**主页默认展示队列页**，一店多队列、服务人员店内多队列分配（后端 [ADR-0009](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0009-queues-and-staff.md)）。
+**状态：R1 前端已实现（2026-11-17）。** 技术栈已由 [ADR-0001](docs/decisions/0001-frontend-stack-and-r1-scope.md) 定稿：全新技术栈 React + TypeScript + Vite + TanStack Query + React Router + Ant Design + Zustand + Vitest；与既有内部工程零源码复用，工程名称不写入公开仓库。**主页默认展示首页概览（调度队列 + 房间）**，一店多队列、服务人员店内多队列分配（后端 [ADR-0009](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0009-queues-and-staff.md)）。
 
 License: MIT · 语言：中文文档（发布前补英文版）
 
@@ -12,7 +12,7 @@ License: MIT · 语言：中文文档（发布前补英文版）
 
 Porch Console 是 Porch OS 的多店后台控制台，是店长和店员每天真正打开的那个界面。**一个用户可拥有多间门店**（后端 [ADR-0006](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0006-user-shops-and-current-shop.md)）：登录后从后端返回的可见门店集合里选定当前门店，顶部切换器随时切换。后端 `porch-os` 撑起结构与数据，这里负责把「多店」变得可操作：把当前在看哪家店做成全局上下文，切一次门店，看板、单据、库存、报表和权限全部跟着重取；跨店汇总按后端返回的可见门店集合显式多选门店，不设门店组，也不让前端自己猜。
 
-R1 界面覆盖队列（主页）、服务人员、房间管理（按楼层分区）、ID 卡管理（建档 / 生效失效 / 绑定持有）、调度台（调度看板 / 判定链配置 / 联动策略 / 审计与指标）、门店列表/设置、商品目录；经营看板、开单收银、会员、报表、权限与店员属后续阶段。错误处理、令牌刷新、加载态、空态与网络不可用提示都有统一约定，避免每个页面各写一套。名字里的 `console` 是中性的：未来加店员端、老板手机端或顾客小程序，都不需要改名。
+R1 界面覆盖首页概览（队列 + 房间，主页）、队列看板、服务人员、房间管理（按楼层分区）、ID 卡管理（建档 / 生效失效 / 绑定持有）、调度台（调度看板 / 判定链配置 / 联动策略 / 审计与指标）、门店列表/设置、商品目录；经营看板、开单收银、会员、报表、权限与店员属后续阶段。错误处理、令牌刷新、加载态、空态与网络不可用提示都有统一约定，避免每个页面各写一套。名字里的 `console` 是中性的：未来加店员端、老板手机端或顾客小程序，都不需要改名。
 
 > 这里的「网络不可用提示」只是错误态文案，**不代表支持离线收银**：断网期间一律不允许提交单据，详见 [后端 ADR-0004](https://github.com/WeijianHuang/porch-os/blob/main/docs/decisions/0004-scope-baseline.md)。
 
@@ -35,14 +35,15 @@ R1 界面覆盖队列（主页）、服务人员、房间管理（按楼层分�
 
 Porch Console is the web console for Porch OS — the screen shop owners and staff open every day. One user can manage several shops (ADR-0006): after login the backend returns the visible shops and a default, and the switcher lets the user pick the active shop. The active shop is a request-time context, not an authorization source: every single-shop request carries it explicitly, and the backend validates it against `user_shops` on every call. Switching is client-side only (no backend endpoint): it cancels in-flight requests, invalidates cached queries keyed by the active shop and refreshes permissions, while cross-shop views are driven by the set of shops the backend says you can see and are unaffected by the switch. It covers dashboards, catalog, checkout, members, reports and staff permissions, with shared conventions for error mapping, token refresh, loading, empty and network-unavailable states. There is no shop-group concept: cross-shop views select shops explicitly from the set the backend says you can see (ADR-0005). Offline checkout, printing, currency/timezone pickers and shop groups are explicitly out of scope (ADR-0004 / ADR-0005): the console shows one currency (CNY) and one timezone (UTC+8), and a network failure never turns into a locally queued order. ADR-0007 closes the backend's remaining open questions: no external integrations in R1, a Docker deployment with two API and two worker replicas and no read replicas, no automatic cross-shop settlement, and audit logs retained for a configurable 30 days — an audit query beyond that window must say so explicitly instead of rendering an empty state. ADR-0008 freezes the backend detailed design and fixes a Docker 2+2 runtime baseline; such an out-of-window query returns 400 AUDIT_RETENTION_WINDOW_EXCEEDED together with the earliest queryable timestamp.
 
-The name is deliberately neutral: adding a staff app, an owner mobile view or a customer mini program later will not require a rename. The concrete stack is now fixed by ADR-0001: React + TypeScript + Vite + TanStack Query + React Router + Ant Design + Zustand + Vitest, with no source reuse from the internal project (NQ-14, ADR-0008); ADR-0007 confirms this repository owns that choice and the backend provides REST + OpenAPI only. The internal project name is deliberately not recorded in this public repository. R1 implements login, shop switching, queues (the default landing view), staff, shop list/settings and the catalog.
+The name is deliberately neutral: adding a staff app, an owner mobile view or a customer mini program later will not require a rename. The concrete stack is now fixed by ADR-0001: React + TypeScript + Vite + TanStack Query + React Router + Ant Design + Zustand + Vitest, with no source reuse from the internal project (NQ-14, ADR-0008); ADR-0007 confirms this repository owns that choice and the backend provides REST + OpenAPI only. The internal project name is deliberately not recorded in this public repository. R1 implements login, shop switching, a read-only home overview of queues and rooms (the default landing view, [ADR-0005](docs/decisions/0005-home-overview.md)), queues, staff, shop list/settings and the catalog.
 
 ## 核心视图（规划）
 
 | 视图 | 说明 |
 |---|---|
 | 门店上下文 | 全局门店切换器（选项只来自 `/me/shops`，一个用户可有多间门店）；单店视图与跨店汇总视图显式区分，切换不影响跨店范围 |
-| 队列（主页） | 当前门店的队列列表（序号 + 名称）与服务人员分配（R1，后端 ADR-0009） |
+| 首页概览（主页） | 只读总览：当前门店的队列卡片（序号 / 名称 / 状态 / 按位次排列的成员）与房间卡片（名称 / 房号 / 楼层 / 状态），卡片横向排列、房间包在一个面板块内（R1，前端 ADR-0005） |
+| 队列 | 当前门店的队列列表（序号 + 名称）与服务人员分配（R1，后端 ADR-0009） |
 | ID 卡管理 | 店内卡片档案（卡号 + 名称 + 生效状态）、绑定 / 解绑服务人员；一卡一人、一人一卡（后端 ADR-0017） |
 | 服务人员 | 状态墙：按当前状态（8 个展示桶）着色的卡片，点卡片即出操作菜单——改状态 / 调位次 / 留位 / 停止轮转 / 查看队列；配色在服务人员页、队列人员视图、调度看板三处一致（R1，后端 ADR-0015） |
 | 房间管理 | 按楼层分区维护本店房间（房间号 + 名称 + 楼层，楼层为整数属性），前端按楼层分组（R1，后端 ADR-0011） |

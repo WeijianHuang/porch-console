@@ -7,6 +7,7 @@ import AuditPage from './pages/AuditPage'
 import BoardPage from './pages/BoardPage'
 import CardsPage from './pages/CardsPage'
 import CatalogPage from './pages/CatalogPage'
+import HomePage from './pages/HomePage'
 import LinkagePage from './pages/LinkagePage'
 import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -32,8 +33,9 @@ function Protected({ children }: { children: ReactNode }) {
 
 function Guest({ children }: { children: ReactNode }) {
   const status = useAuthStore((state) => state.status)
-  // Queues are the default landing view (ADR-0009).
-  return status === 'authenticated' ? <Navigate to="/queues" replace /> : <>{children}</>
+  // Home is the default landing view (frontend ADR-0005); queues stay one click
+  // away and remain the place where queue membership is edited.
+  return status === 'authenticated' ? <Navigate to="/home" replace /> : <>{children}</>
 }
 
 export default function App() {
@@ -71,6 +73,7 @@ export default function App() {
               </Protected>
             }
           >
+            <Route path="/home" element={<HomePage />} />
             <Route path="/queues" element={<QueuesPage />} />
             <Route path="/staff" element={<StaffPage />} />
             <Route path="/rooms" element={<RoomsPage />} />
@@ -84,7 +87,7 @@ export default function App() {
             <Route path="/catalog" element={<CatalogPage />} />
             <Route path="/orders" element={<OrdersPage />} />
           </Route>
-          <Route path="/" element={<Navigate to="/queues" replace />} />
+          <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>

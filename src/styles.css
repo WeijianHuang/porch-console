@@ -2623,3 +2623,156 @@ textarea {
   margin: 8px 0 0;
   font-size: 12px;
 }
+
+/* ==========================================================================
+   Home overview (frontend ADR-0005): dispatch queues + room cards
+   Both strips are flex-wrap rows: a fixed-height grid would leave holes when a
+   shop has three queues or thirty rooms, and the cards must stay readable at
+   1440 and 1024 without horizontal scrolling.
+   ========================================================================== */
+.home-queue-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.home-queue-card {
+  display: flex;
+  flex: 1 1 268px;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 240px;
+  max-width: 360px;
+  padding: 14px 16px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.home-queue-card:hover {
+  border-color: #cbded0;
+  box-shadow: var(--shadow-sm);
+}
+.home-queue-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.home-queue-head strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-900);
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-queue-members {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+  min-height: 26px;
+}
+.home-queue-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 8px;
+  border-radius: 999px;
+  background: var(--line-soft);
+  color: var(--ink-700);
+  font-size: 12px;
+}
+.home-queue-member::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--forest-500);
+}
+.home-queue-member[data-duty='off'] {
+  color: var(--ink-500);
+}
+.home-queue-member[data-duty='off']::before {
+  background: #c2ccc6;
+}
+.home-queue-member.is-more {
+  background: transparent;
+  color: var(--ink-500);
+}
+.home-queue-member.is-more::before {
+  display: none;
+}
+.home-queue-empty {
+  color: var(--ink-500);
+  font-size: 12px;
+}
+.home-queue-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+.home-queue-foot .ant-btn-link {
+  padding-inline: 0;
+}
+
+.home-room-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.home-room-card {
+  display: flex;
+  flex: 1 1 176px;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 150px;
+  max-width: 230px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.home-room-card:hover {
+  border-color: #cbded0;
+  box-shadow: var(--shadow-sm);
+}
+.home-room-card.is-inactive {
+  opacity: 0.6;
+}
+.home-room-name {
+  overflow: hidden;
+  color: var(--ink-900);
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-room-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.home-room-code {
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--mint-100);
+  color: var(--forest-700);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+.home-room-floor {
+  color: var(--ink-500);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
