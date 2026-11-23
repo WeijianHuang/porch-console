@@ -110,7 +110,7 @@ export default function HomePage() {
         <div className="stat-tile">
           <span className="stat-icon amber"><ApartmentOutlined /></span>
           <div className="stat-text">
-            <div className="stat-label">房间（启用 / 全部）</div>
+            <div className="stat-label">房间（启用）</div>
             <div className="stat-value">{activeRooms} / {rooms.length}</div>
           </div>
         </div>
