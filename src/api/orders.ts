@@ -25,4 +25,25 @@ export const ordersApi = {
   },
   get: (shopId: string, orderId: string) =>
     api.get<ApiEnvelope<Order>>(`${base(shopId)}/orders/${encodeURIComponent(orderId)}`, { shopId }),
+  /** Bind or replace the single card (ADR-0022 §2). The card must be active,
+   * held by a staff member of this shop and free of another active order. */
+  bindCard: (shopId: string, orderId: string, cardPublicId: string, version: number) =>
+    api.post<ApiEnvelope<Order>>(
+      `${base(shopId)}/orders/${encodeURIComponent(orderId)}/card`,
+      { card_public_id: cardPublicId, version },
+      { shopId },
+    ),
+  /** Release only the order-side binding; the staff holding is untouched. */
+  unbindCard: (shopId: string, orderId: string, version: number) =>
+    api.delete<ApiEnvelope<Order>>(
+      `${base(shopId)}/orders/${encodeURIComponent(orderId)}/card?version=${version}`,
+      { shopId },
+    ),
+  /** Bind or replace the room; sharing a room across orders is allowed. */
+  bindRoom: (shopId: string, orderId: string, roomPublicId: string, version: number) =>
+    api.post<ApiEnvelope<Order>>(
+      `${base(shopId)}/orders/${encodeURIComponent(orderId)}/room`,
+      { room_public_id: roomPublicId, version },
+      { shopId },
+    ),
 }

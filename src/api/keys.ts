@@ -13,6 +13,10 @@ export const queryKeys = {
   cards: (shopId: string) => ['shop-scope', shopId, 'cards'] as const,
   orders: (shopId: string, status?: string) => ['shop-scope', shopId, 'orders', status ?? 'all'] as const,
   order: (shopId: string, orderId: string) => ['shop-scope', shopId, 'order', orderId] as const,
+  companionGroups: (shopId: string, status?: string) =>
+    ['shop-scope', shopId, 'companion-groups', status ?? 'all'] as const,
+  companionGroup: (shopId: string, groupId: string) =>
+    ['shop-scope', shopId, 'companion-group', groupId] as const,
   schedulingBoard: (shopId: string) => ['shop-scope', shopId, 'scheduling-board'] as const,
   schedulingRules: (shopId: string) => ['shop-scope', shopId, 'scheduling-rules'] as const,
   schedulingPolicies: (shopId: string) => ['shop-scope', shopId, 'scheduling-policies'] as const,

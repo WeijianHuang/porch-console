@@ -6,6 +6,7 @@ import { ordersApi } from '../api/orders'
 import { queryKeys } from '../api/keys'
 import type { Order } from '../api/types'
 import PageHeader from '../components/PageHeader'
+import OrderContextPanel from '../components/OrderContextPanel'
 import { EmptyHint, ErrorState, PageLoading } from '../components/RequestState'
 import { hasPermission, useAuthStore } from '../stores/authStore'
 import { useShopStore } from '../stores/shopStore'
@@ -51,6 +52,7 @@ export default function OrdersPage() {
   const shopId = useShopStore((state) => state.currentShopId)
   const permissions = useAuthStore((state) => state.permissions)
   const canRead = hasPermission(permissions, 'order.read')
+  const canWrite = hasPermission(permissions, 'order.write')
   const [status, setStatus] = useState('all')
   const [active, setActive] = useState<Order | null>(null)
 
@@ -234,6 +236,15 @@ export default function OrdersPage() {
               <div><span>已退（派生）</span><strong>{formatCNY(detail.refunded_amount ?? '0.00')}</strong></div>
               <div><span>可退（派生）</span><strong>{formatCNY(detail.refundable_amount ?? '0.00')}</strong></div>
             </div>
+            <OrderContextPanel
+              shopId={shopId}
+              order={detail}
+              canWrite={canWrite}
+              onChanged={() => {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.order(shopId, detail.public_id) })
+                void queryClient.invalidateQueries({ queryKey: queryKeys.orders(shopId, status) })
+              }}
+            />
             <div className="panel-head"><h3>订单明细</h3></div>
             <Table
               className="data-table"

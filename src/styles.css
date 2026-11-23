@@ -2556,3 +2556,70 @@ textarea {
 .order-detail .panel-head {
   padding-inline: 0;
 }
+
+/* Order context bindings (ADR-0022): card / room / companion group rows. */
+.order-context {
+  margin-bottom: 20px;
+}
+.context-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.context-row:last-of-type {
+  border-bottom: 0;
+}
+.context-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--surface-2, var(--surface));
+  color: var(--ink-600);
+  flex: none;
+}
+.context-body {
+  flex: 1;
+  min-width: 0;
+}
+.context-label {
+  color: var(--ink-600);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.context-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--ink-900);
+  font-size: 13px;
+}
+.context-group {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.context-group-totals {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  color: var(--ink-600);
+  font-size: 12px;
+}
+.context-group-totals strong {
+  color: var(--ink-900);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  margin-left: 4px;
+}
+.context-group .muted {
+  margin: 8px 0 0;
+  font-size: 12px;
+}

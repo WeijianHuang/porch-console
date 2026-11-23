@@ -205,6 +205,14 @@ export interface IdCard extends CardRef {
   status: 'active' | 'inactive' | string
   version: number
   holder: CardHolder | null
+  /** Active order occupying the card; null when free (ADR-0022). */
+  bound_order?: CardBoundOrder | null
+}
+
+export interface CardBoundOrder {
+  public_id: string
+  order_no: string
+  status: string
 }
 
 export interface CreateCardRequest {
@@ -470,6 +478,70 @@ export interface Order {
   paid_amount?: string
   refunded_amount?: string
   refundable_amount?: string
+  /** Active card binding; null once released (ADR-0022). */
+  card?: OrderCardRef | null
+  /** Last released binding only — a settled order never advertises a usable card. */
+  card_binding_history?: OrderCardBinding
+  room?: OrderRoomRef | null
+  /** Current active membership's group; null when the order is standalone. */
+  companion_group?: OrderCompanionGroupRef
+}
+
+/** Order-side card projection (ADR-0022 §1). */
+export interface OrderCardRef {
+  public_id: string
+  code: string
+  name: string
+}
+
+export interface OrderCardBinding {
+  card: OrderCardRef
+  released_at: string
+  reason: 'settled' | 'cancelled' | 'unbound' | 'replaced' | string
+}
+
+/** Room is attribution, never an exclusive lock: many orders may share one. */
+export interface OrderRoomRef {
+  public_id: string
+  floor: number
+  code: string
+  name: string
+}
+
+/** `status` is present because a membership outlives group close/cancel. */
+export interface OrderCompanionGroupRef {
+  public_id: string
+  status: 'open' | 'closed' | 'cancelled' | string
+}
+
+/** Companion groups (ADR-0022 §5). The group stores no amount and is never a
+ * payment subject: totals are read-only derivations over member orders. */
+export interface CompanionMember {
+  order_public_id: string
+  order_no: string
+  status: string
+  total_amount: string
+  discount_amount: string
+  paid_amount: string
+  refunded_amount: string
+  refundable_amount: string
+  payable_amount: string
+  joined_at: string
+}
+
+export interface CompanionGroup {
+  public_id: string
+  status: 'open' | 'closed' | 'cancelled' | string
+  version: number
+  created_at: string
+  updated_at: string
+  members?: CompanionMember[]
+  payable_total?: string
+  paid_total?: string
+}
+
+export interface CreateCompanionGroupRequest {
+  order_public_ids?: string[]
 }
 
 export interface AuditEntry {
