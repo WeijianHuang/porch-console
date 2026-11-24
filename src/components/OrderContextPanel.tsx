@@ -9,16 +9,19 @@
  * separate orders, and whether they pay separately or together is decided by
  * membership in a group, never by the room.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApartmentOutlined, IdcardOutlined, TeamOutlined } from '@ant-design/icons'
 import { Button, Modal, Select, Space, Table, Tag, Tooltip, message } from 'antd'
 import { cardsApi } from '../api/cards'
+import { catalogApi } from '../api/catalog'
 import { companionGroupsApi } from '../api/companionGroups'
 import { ordersApi } from '../api/orders'
 import { roomsApi } from '../api/rooms'
+import { staffApi } from '../api/queues'
 import { queryKeys } from '../api/keys'
-import type { CompanionGroup, Order } from '../api/types'
+import type { CompanionGroup, CatalogItem, Order } from '../api/types'
+import { isServiceItem, qualifiedStaffForItem } from '../shop/orderStaff'
 import { formatCNY } from '../utils/money'
 
 /** Binding is possible only while the order is unsettled (ADR-0022 §2). */
@@ -58,6 +61,8 @@ export default function OrderContextPanel({
   const [roomOpen, setRoomOpen] = useState(false)
   const [groupPick, setGroupPick] = useState<string | undefined>()
   const [groupOpen, setGroupOpen] = useState(false)
+  // ADR-0023: draft values for reassigning a service line's executor.
+  const [lineStaff, setLineStaff] = useState<Record<number, string>>({})
 
   const editable = canWrite && EDITABLE_STATUS.has(order.status)
   const groupId = order.companion_group?.public_id
@@ -82,6 +87,26 @@ export default function OrderContextPanel({
     queryFn: () => companionGroupsApi.get(shopId, groupId!),
     enabled: Boolean(groupId),
   })
+  const catalogQ = useQuery({
+    queryKey: queryKeys.catalog,
+    queryFn: () => catalogApi.list(),
+    enabled: Boolean(order.lines?.length),
+  })
+  const staffQ = useQuery({
+    queryKey: queryKeys.staff(shopId),
+    queryFn: () => staffApi.list(shopId),
+    enabled: editable && Boolean(order.lines?.length),
+  })
+  const catalogById = new Map((catalogQ.data?.data ?? []).map((item) => [item.public_id, item]))
+  const serviceLines = (order.lines ?? []).filter((line) =>
+    isServiceItem(catalogById.get(line.catalog_item_id) as CatalogItem | undefined))
+  useEffect(() => {
+    const initial: Record<number, string> = {}
+    for (const line of order.lines ?? []) {
+      if (line.staff_public_id) initial[line.line_no] = line.staff_public_id
+    }
+    setLineStaff(initial)
+  }, [order.lines])
 
   const afterContext = (text: string) => {
     message.success(text)
@@ -103,6 +128,14 @@ export default function OrderContextPanel({
     mutationFn: (roomPublicId: string) => ordersApi.bindRoom(shopId, order.public_id, roomPublicId, order.version),
     onSuccess: () => { setRoomOpen(false); setRoomPick(undefined); afterContext('房间已绑定') },
     onError: (e) => message.error((e as Error).message || '绑定失败'),
+  })
+
+  const reassignStaff = useMutation({
+    mutationFn: (lineNo: number) => ordersApi.setLineStaff(
+      shopId, order.public_id, lineNo, lineStaff[lineNo] ? lineStaff[lineNo] : null,
+    ),
+    onSuccess: () => { afterContext('执行服务员已更新') },
+    onError: (e) => message.error((e as Error).message || '改派失败'),
   })
 
   const refreshGroup = () => {
@@ -197,6 +230,55 @@ export default function OrderContextPanel({
           <Button size="small" onClick={() => setRoomOpen(true)}>{order.room ? '换房' : '绑房'}</Button>
         ) : null}
       </div>
+
+      {serviceLines.length ? (
+        <div className="context-staff">
+          <div className="context-label">服务执行人（ADR-0023）</div>
+          {serviceLines.map((line) => {
+            const item = catalogById.get(line.catalog_item_id)
+            const options = qualifiedStaffForItem(staffQ.data?.data ?? [], line.catalog_item_id)
+              .map((person) => ({
+                value: person.public_id,
+                label: `${person.display_name} · ${person.code}`,
+              }))
+            return (
+              <div className="context-staff-line" key={line.line_no}>
+                <span>
+                  #{line.line_no} {item?.name ?? line.item_name_snapshot}
+                  {!line.staff_public_id && !line.staff_name_snapshot ? <em> · 未指定</em> : null}
+                </span>
+                {!line.staff_public_id && line.staff_name_snapshot ? (
+                  <span className="muted">历史：{line.staff_name_snapshot}</span>
+                ) : null}
+                {editable ? (
+                  <Space size={4}>
+                    <Select
+                      size="small"
+                      style={{ width: 180 }}
+                      value={lineStaff[line.line_no] ?? undefined}
+                      onChange={(value) => setLineStaff((prev) => ({ ...prev, [line.line_no]: value }))}
+                      options={options}
+                      placeholder="有资质的服务员"
+                      showSearch
+                      optionFilterProp="label"
+                      notFoundContent="暂无有资质的服务员"
+                    />
+                    <Button
+                      size="small"
+                      loading={reassignStaff.isPending}
+                      onClick={() => reassignStaff.mutate(line.line_no)}
+                    >
+                      改派
+                    </Button>
+                  </Space>
+                ) : (
+                  <span>{line.staff_name_snapshot ?? '—'}</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
 
       <div className="context-row">
         <span className="context-icon"><TeamOutlined /></span>

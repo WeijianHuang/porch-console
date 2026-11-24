@@ -46,10 +46,18 @@ export const ordersApi = {
     api.post<ApiEnvelope<Order>>(`${base(shopId)}/orders`, body, { shopId }),
   /** Appends one line; the unit price is snapshotted server-side from the
    * catalog item, so a client price can never be submitted. */
-  addLine: (shopId: string, orderId: string, catalogItemId: string, quantity: string) =>
+  /** Service lines may carry a qualified executor (ADR-0023); product lines must not. */
+  addLine: (shopId: string, orderId: string, catalogItemId: string, quantity: string, staffPublicId?: string) =>
     api.post<ApiEnvelope<Order>>(
       `${base(shopId)}/orders/${encodeURIComponent(orderId)}/lines`,
-      { catalog_item_id: catalogItemId, quantity },
+      { catalog_item_id: catalogItemId, quantity, staff_public_id: staffPublicId ?? '' },
+      { shopId },
+    ),
+  /** Reassign or clear (null) the executor of one service line. */
+  setLineStaff: (shopId: string, orderId: string, lineNo: number, staffPublicId: string | null) =>
+    api.put<ApiEnvelope<Order>>(
+      `${base(shopId)}/orders/${encodeURIComponent(orderId)}/lines/${lineNo}/staff`,
+      { staff_public_id: staffPublicId },
       { shopId },
     ),
   removeLine: (shopId: string, orderId: string, lineNo: number) =>

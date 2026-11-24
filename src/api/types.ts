@@ -178,6 +178,8 @@ export interface Staff {
 
 export interface StaffDetail extends Staff {
   queues: QueueRef[]
+  /** ADR-0023: qualified service catalog item public_ids. */
+  service_item_ids?: string[]
 }
 
 export interface StaffQueueRef {
@@ -244,12 +246,20 @@ export interface StaffSummary extends Staff {
   queues: StaffQueueRef[]
   id_card: CardRef | null
   service_remaining_minutes: number | null
+  /** ADR-0023: qualified service catalog item public_ids. */
+  service_item_ids: string[]
 }
 
 export interface SetStaffStateRequest {
   state: string
   reason?: string
   version?: number
+}
+
+/** ADR-0023: full replacement of a staff member's service-item qualifications. */
+export interface SetStaffServiceItemsRequest {
+  catalog_item_ids: string[]
+  version: number
 }
 
 export interface SetStaffRotationRequest {
@@ -460,6 +470,10 @@ export interface OrderLine {
   quantity: string
   unit_price: string
   amount: string
+  /** ADR-0023: executor of a service line; product lines carry null. */
+  staff_public_id?: string | null
+  /** Historical name kept even after the staff row is deleted. */
+  staff_name_snapshot?: string | null
 }
 
 export interface Order {

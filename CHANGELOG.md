@@ -6,6 +6,12 @@
 
 ### 新增
 
+- **服务项资质与明细执行服务员（前端 ADR-0007，对齐后端 ADR-0023 / schema 12）**：
+  - 服务人员卡新增「服务项 N」入口（`queue.write` 可见，按钮不冒泡到卡片菜单）：多选启用中的服务目录项，走 `PUT /staff/{staffId}/service-items` 全量替换，保存后失效 `staff` / `staffDetail` 缓存。
+  - 开单弹窗购物车按行选人：服务项下拉标「需服务员」并渲染有资质人员选择框（只按 `status='active'` + `service_item_ids` 过滤，在岗 / 离岗仅作提示）；商品行显示「—」不绑定。任一服务行缺人即禁用提交，mutation 内再判一次并提示，避免绕过前端校验。
+  - `ordersApi.addLine` 带 `staff_public_id`；订单详情新增「服务执行人」区块，显示快照姓名、未指定提示，未结单可就地改派（`PUT /orders/{id}/lines/{lineNo}/staff`），已结单只读。
+  - 新增纯函数 `src/shop/orderStaff.ts`（资质过滤、服务项判定、缺人明细行）与 5 个单测；`api/types.ts` 增 `service_item_ids` / `staff_public_id` / `staff_name_snapshot` / `SetStaffServiceItemsRequest`。
+  - 验证：typecheck / lint / 39 项单测 / 生产构建全绿。
 - **点击房间开单（前端 ADR-0006，修订 ADR-0005 的「首页只读」边界）**：
   - 首页启用中的房间卡成为开单入口：`role="button"`、`Tab` 可达、`Enter` / `Space` 触发，点击弹出「开单」弹窗并**预填该房间**。停用房间不可点，卡上直接写「房间已停用，不能开单」（后端会回 `409 ROOM_INACTIVE`，不在入口放过）；无 `order.write` 时提示「没有开单权限」。
   - 弹窗四件事：房间（预填、仅启用房间、可改）、ID 卡（必选，只列「生效 + 已有人持有 + 未被其他活跃订单占用」）、明细（目录项加入购物车、数量可改、可删）、提交。弹窗明说房间是归因而非锁：同一房间可同时挂多张订单，合并买单要去订单详情建同行组。

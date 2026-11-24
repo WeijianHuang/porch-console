@@ -14,6 +14,7 @@ import type {
   QueueView,
   ReorderQueueStaffRequest,
   SetStaffRotationRequest,
+  SetStaffServiceItemsRequest,
   SetStaffStateRequest,
   Staff,
   StaffDetail,
@@ -86,6 +87,15 @@ export const staffApi = {
     api.post<ApiEnvelope<{ queue_id: string; staff_id: string; position: number }>>(
       `${base(shopId)}/queues/${encodeURIComponent(queueId)}/staff/${encodeURIComponent(staffId)}/move`,
       body, { shopId },
+    ),
+  /** ADR-0023: service-item qualifications. Full replacement, versioned. */
+  serviceItems: (shopId: string, staffId: string) =>
+    api.get<ApiEnvelope<{ staff_public_id: string; service_item_ids: string[] }>>(
+      `${base(shopId)}/staff/${encodeURIComponent(staffId)}/service-items`, { shopId },
+    ),
+  setServiceItems: (shopId: string, staffId: string, body: SetStaffServiceItemsRequest) =>
+    api.put<ApiEnvelope<StaffSummary>>(
+      `${base(shopId)}/staff/${encodeURIComponent(staffId)}/service-items`, body, { shopId },
     ),
 }
 

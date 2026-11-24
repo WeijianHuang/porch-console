@@ -19,8 +19,10 @@ import { cardsApi } from '../api/cards'
 import { catalogApi } from '../api/catalog'
 import { ordersApi } from '../api/orders'
 import { roomsApi } from '../api/rooms'
+import { staffApi } from '../api/queues'
 import { queryKeys } from '../api/keys'
-import type { CatalogItem, Order, PaymentMethod, Room } from '../api/types'
+import type { CatalogItem, Order, PaymentMethod, Room, StaffSummary } from '../api/types'
+import { isServiceItem, qualifiedStaffForItem } from '../shop/orderStaff'
 import { floorLabel } from '../shop/roomGroup'
 import { formatCNY, lineAmount, sumAmounts } from '../utils/money'
 
@@ -28,6 +30,8 @@ interface CartLine {
   key: string
   item: CatalogItem
   quantity: number
+  /** ADR-0023: executor of a service line; product lines leave it empty. */
+  staffId?: string
 }
 
 const PAY_METHODS: { value: PaymentMethod; label: string }[] = [
@@ -91,6 +95,13 @@ export default function OrderEntryModal({
     queryFn: () => catalogApi.list(),
     enabled: open,
   })
+  // ADR-0023: qualification comes from the staff list in one call; each line
+  // filters it by its own service item instead of issuing an N+1 request.
+  const staffQ = useQuery({
+    queryKey: queryKeys.staff(shopId),
+    queryFn: () => staffApi.list(shopId),
+    enabled: open,
+  })
 
   // A card is bindable only while it is active, held by a staff member and not
   // already occupied by another active order (ADR-0022 §2). Filtering here
@@ -111,7 +122,13 @@ export default function OrderEntryModal({
     .filter((item) => item.active)
     .map((item) => ({
       value: item.public_id,
-      label: `${item.name} · ${formatCNY(item.base_price)}`,
+      label: `${item.name} · ${formatCNY(item.base_price)}${isServiceItem(item) ? ' · 需服务员' : ''}`,
+    }))
+  const staffList: StaffSummary[] = staffQ.data?.data ?? []
+  const staffOptionsFor = (item: CatalogItem) =>
+    qualifiedStaffForItem(staffList, item.public_id).map((person) => ({
+      value: person.public_id,
+      label: `${person.display_name} · ${person.code}${person.duty_status === 'on' ? '（在岗）' : '（离岗）'}`,
     }))
 
   const estimate = useMemo(
@@ -132,6 +149,12 @@ export default function OrderEntryModal({
     )
   }
 
+  const setLineStaff = (key: string, staffId: string | undefined) => {
+    setCart((prev) =>
+      prev.map((line) => (line.key === key ? { ...line, staffId } : line)),
+    )
+  }
+
   const invalidateOrderData = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.orders(shopId) })
     void queryClient.invalidateQueries({ queryKey: queryKeys.cards(shopId) })
@@ -142,6 +165,7 @@ export default function OrderEntryModal({
     mutationFn: async () => {
       if (!roomId || !cardId) throw new Error('请先选择房间与 ID 卡')
       if (cart.length === 0) throw new Error('请至少添加一条明细')
+      if (staffMissing) throw new Error('请为每条服务明细选择有资质的服务员')
       const order = (await ordersApi.create(shopId, {
         room_public_id: roomId,
         card_public_id: cardId,
@@ -151,7 +175,9 @@ export default function OrderEntryModal({
       setCreated(order)
       draftRef.current = order
       for (const line of cart) {
-        await ordersApi.addLine(shopId, order.public_id, line.item.public_id, String(line.quantity))
+        await ordersApi.addLine(
+          shopId, order.public_id, line.item.public_id, String(line.quantity), line.staffId,
+        )
       }
       const detail = (await ordersApi.get(shopId, order.public_id)).data
       const lines = detail.lines ?? []
@@ -199,7 +225,10 @@ export default function OrderEntryModal({
     onError: (error) => message.error((error as Error).message || '收款失败'),
   })
 
-  const canSubmit = Boolean(roomId && cardId) && cart.length > 0
+  // ADR-0023: a service line without a qualified executor must not be
+  // submitted; the server would answer 422 ORDER_LINE_STAFF_REQUIRED.
+  const staffMissing = cart.some((line) => isServiceItem(line.item) && !line.staffId)
+  const canSubmit = Boolean(roomId && cardId) && cart.length > 0 && !staffMissing
   const selectedRoom = (roomsQ.data?.data ?? []).find((r) => r.public_id === roomId)
 
   return (
@@ -208,7 +237,7 @@ export default function OrderEntryModal({
         title={step === 'entry' ? '开单' : step === 'done' ? '开单完成' : '开单未完成'}
         open={open}
         onCancel={onClose}
-        width={780}
+        width={900}
         destroyOnHidden
         maskClosable={false}
         footer={step === 'entry' ? undefined : null}
@@ -256,7 +285,7 @@ export default function OrderEntryModal({
               showIcon
               className="entry-note"
               message="同一房间可同时挂多张订单"
-              description="分开买单时各单独立收款；需要合并买单，请在订单详情里建同行组后一并查看合计。"
+              description="分开买单时各单独立收款；需要合并买单，请在订单详情里建同行组后一并查看合计。服务明细须选择有资质的服务员，商品明细不绑定。"
             />
 
             <div className="panel-head entry-lines-head">
@@ -286,12 +315,35 @@ export default function OrderEntryModal({
               locale={{ emptyText: '还没有明细，先在上面选一个项目' }}
               columns={[
                 {
-                  title: '项目', key: 'name',
+                  title: '项目', key: 'name', width: 220,
                   render: (_: unknown, line: CartLine) => (
                     <Space size={6}>
                       <Tag>{line.item.sku}</Tag>
-                      <span>{line.item.name}</span>
+                      <Tooltip title={line.item.name}>
+                        <span style={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {line.item.name}
+                        </span>
+                      </Tooltip>
                     </Space>
+                  ),
+                },
+                {
+                  title: '执行服务员', key: 'staff', width: 190,
+                  render: (_: unknown, line: CartLine) => isServiceItem(line.item) ? (
+                    <Select
+                      size="small"
+                      style={{ width: '100%' }}
+                      placeholder="选择有资质的服务员"
+                      value={line.staffId}
+                      onChange={(value) => setLineStaff(line.key, value)}
+                      options={staffOptionsFor(line.item)}
+                      loading={staffQ.isLoading}
+                      showSearch
+                      optionFilterProp="label"
+                      notFoundContent="该服务项暂无有资质的服务员"
+                    />
+                  ) : (
+                    <span>—</span>
                   ),
                 },
                 {

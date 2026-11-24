@@ -5,15 +5,16 @@
  * queue board and the dispatch board offer exactly the same actions.
  */
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRightOutlined, CheckCircleOutlined, ClockCircleOutlined, PlusOutlined,
   SearchOutlined, TeamOutlined,
 } from '@ant-design/icons'
 import {
-  Avatar, Button, Dropdown, Form, Input, Modal, Space, message,
+  Avatar, Button, Dropdown, Form, Input, Modal, Select, Space, message,
 } from 'antd'
 import { useNavigate } from 'react-router-dom'
+import { catalogApi } from '../api/catalog'
 import { queryKeys } from '../api/keys'
 import { staffApi } from '../api/queues'
 import type { CreateStaffRequest, StaffSummary } from '../api/types'
@@ -49,12 +50,15 @@ export default function StaffPage() {
 
 function StaffWall({ canWrite }: { canWrite: boolean }) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const shopId = useShopStore((state) => state.currentShopId)
   const { menuProps } = useStaffActionMenu()
   const [form] = Form.useForm<StaffForm>()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [bucket, setBucket] = useState<StaffBucket | 'all'>('all')
+  const [qualTarget, setQualTarget] = useState<StaffSummary | null>(null)
+  const [qualIds, setQualIds] = useState<string[]>([])
 
   const staffQuery = useQuery({
     queryKey: queryKeys.staff(shopId ?? ''),
@@ -72,6 +76,42 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
     },
     onError: (error) => message.error((error as Error).message || '建档失败'),
   })
+
+  // ADR-0023: qualification is a shop-scoped staff ↔ service-item relation.
+  // The catalog is global, so one query serves every card in this shop.
+  const catalogQ = useQuery({
+    queryKey: queryKeys.catalog,
+    queryFn: () => catalogApi.list(),
+    enabled: Boolean(qualTarget),
+  })
+  const serviceOptions = useMemo(
+    () => (catalogQ.data?.data ?? [])
+      .filter((item) => item.type === 'service' && item.active)
+      .map((item) => ({ value: item.public_id, label: `${item.name} · ${item.sku}` })),
+    [catalogQ.data],
+  )
+
+  const saveQualification = useMutation({
+    mutationFn: () => staffApi.setServiceItems(shopId!, qualTarget!.public_id, {
+      catalog_item_ids: qualIds,
+      version: qualTarget!.version,
+    }),
+    onSuccess: () => {
+      setQualTarget(null)
+      message.success('服务项资质已更新')
+      void staffQuery.refetch()
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.staff(shopId!) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.staffDetail(shopId!, qualTarget?.public_id ?? '') }),
+      ])
+    },
+    onError: (error) => message.error((error as Error).message || '资质保存失败'),
+  })
+
+  const openQualification = (item: StaffSummary) => {
+    setQualTarget(item)
+    setQualIds([...(item.service_item_ids ?? [])])
+  }
 
   const staff = useMemo(() => staffQuery.data?.data ?? [], [staffQuery.data])
   const counts = useMemo(() => {
@@ -200,11 +240,43 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
         ) : (
           <div className="staff-grid">
             {visible.map((item) => (
-              <StaffWallCard key={item.public_id} item={item} binding={menuProps(item)} />
+              <StaffWallCard
+                key={item.public_id}
+                item={item}
+                binding={menuProps(item)}
+                onQualification={canWrite ? () => openQualification(item) : undefined}
+              />
             ))}
           </div>
         )}
       </section>
+
+      <Modal
+        title={`维护服务项 · ${qualTarget?.display_name ?? ''}`}
+        open={Boolean(qualTarget)}
+        onCancel={() => setQualTarget(null)}
+        onOk={() => saveQualification.mutate()}
+        confirmLoading={saveQualification.isPending}
+        okText="保存资质"
+        cancelText="取消"
+        destroyOnHidden
+      >
+        <p className="qual-hint">
+          只列出启用中的服务项；全量替换该服务员可执行的范围，不影响已开单据。
+        </p>
+        <Select
+          mode="multiple"
+          style={{ width: '100%' }}
+          value={qualIds}
+          onChange={setQualIds}
+          options={serviceOptions}
+          loading={catalogQ.isLoading}
+          placeholder="选择该服务员可做的服务项"
+          optionFilterProp="label"
+          showSearch
+          notFoundContent="该门店目录暂无启用的服务项"
+        />
+      </Modal>
 
       <Modal
         title="新建服务人员"
@@ -237,10 +309,11 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
 }
 
 function StaffWallCard({
-  item, binding,
+  item, binding, onQualification,
 }: {
   item: StaffSummary
   binding: StaffMenuBinding
+  onQualification?: () => void
 }) {
   const key = bucketOf(item.state)
   return (
@@ -288,6 +361,16 @@ function StaffWallCard({
           </span>
           {item.status !== 'active' ? <span className="pill off">停用</span> : null}
           {item.stop_rotation ? <span className="staff-no-rotation">不轮转</span> : null}
+          {onQualification ? (
+            <button
+              type="button"
+              className="staff-qual-btn"
+              onClick={(event) => { event.stopPropagation(); onQualification() }}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              服务项 {item.service_item_ids?.length ?? 0}
+            </button>
+          ) : null}
           <span className="staff-open-hint">点击操作</span>
         </div>
       </article>
