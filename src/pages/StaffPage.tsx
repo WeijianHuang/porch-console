@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom'
 import { catalogApi } from '../api/catalog'
 import { queryKeys } from '../api/keys'
 import { staffApi } from '../api/queues'
+import { staffCategoriesApi } from '../api/staffCategories'
 import type { CreateStaffRequest, StaffSummary } from '../api/types'
 import PageHeader from '../components/PageHeader'
 import StaffActionProvider from '../components/StaffActionProvider'
@@ -59,6 +60,9 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
   const [bucket, setBucket] = useState<StaffBucket | 'all'>('all')
   const [qualTarget, setQualTarget] = useState<StaffSummary | null>(null)
   const [qualIds, setQualIds] = useState<string[]>([])
+  const [categoryTarget, setCategoryTarget] = useState<StaffSummary | null>(null)
+  const [categoryId, setCategoryId] = useState<string>('')
+  const [newCategoryName, setNewCategoryName] = useState('')
 
   const staffQuery = useQuery({
     queryKey: queryKeys.staff(shopId ?? ''),
@@ -84,6 +88,20 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
     queryFn: () => catalogApi.list(),
     enabled: Boolean(qualTarget),
   })
+  // ADR-0024: one shop-scoped category per staff member, used by the order
+  // entry picker to filter people. It is classification, not qualification.
+  const categoryQ = useQuery({
+    queryKey: queryKeys.staffCategories(shopId ?? ''),
+    queryFn: () => staffCategoriesApi.list(shopId!),
+    enabled: Boolean(shopId),
+  })
+  const categoryOptions = useMemo(
+    () => (categoryQ.data?.data ?? [])
+      .filter((category) => category.status === 'active')
+      .map((category) => ({ value: category.public_id, label: category.name })),
+    [categoryQ.data],
+  )
+
   const serviceOptions = useMemo(
     () => (catalogQ.data?.data ?? [])
       .filter((item) => item.type === 'service' && item.active)
@@ -112,6 +130,45 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
     setQualTarget(item)
     setQualIds([...(item.service_item_ids ?? [])])
   }
+
+  const openCategory = (item: StaffSummary) => {
+    setCategoryTarget(item)
+    setCategoryId(item.category?.public_id ?? '')
+    setNewCategoryName('')
+  }
+
+  const refreshStaff = () => {
+    void staffQuery.refetch()
+    void queryClient.invalidateQueries({ queryKey: queryKeys.staff(shopId!) })
+  }
+
+  const saveCategory = useMutation({
+    mutationFn: () => staffApi.update(shopId!, categoryTarget!.public_id, {
+      category_public_id: categoryId,
+      version: categoryTarget!.version,
+    }),
+    onSuccess: () => {
+      setCategoryTarget(null)
+      message.success('服务人员分类已更新')
+      refreshStaff()
+    },
+    onError: (error) => message.error((error as Error).message || '分类保存失败'),
+  })
+
+  const createCategory = useMutation({
+    mutationFn: () => staffCategoriesApi.create(shopId!, {
+      code: `CAT-${Date.now().toString(36).toUpperCase()}`,
+      name: newCategoryName.trim(),
+      sort_order: (categoryQ.data?.data?.length ?? 0) + 1,
+    }),
+    onSuccess: (response) => {
+      setNewCategoryName('')
+      setCategoryId(response.data.public_id)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.staffCategories(shopId!) })
+      message.success('分类已创建')
+    },
+    onError: (error) => message.error((error as Error).message || '分类创建失败'),
+  })
 
   const staff = useMemo(() => staffQuery.data?.data ?? [], [staffQuery.data])
   const counts = useMemo(() => {
@@ -245,6 +302,7 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
                 item={item}
                 binding={menuProps(item)}
                 onQualification={canWrite ? () => openQualification(item) : undefined}
+                onCategory={canWrite ? () => openCategory(item) : undefined}
               />
             ))}
           </div>
@@ -279,6 +337,44 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
       </Modal>
 
       <Modal
+        title={`维护分类 · ${categoryTarget?.display_name ?? ''}`}
+        open={Boolean(categoryTarget)}
+        onCancel={() => setCategoryTarget(null)}
+        onOk={() => saveCategory.mutate()}
+        confirmLoading={saveCategory.isPending}
+        okText="保存分类"
+        cancelText="取消"
+        destroyOnHidden
+      >
+        <p className="qual-hint">一位服务员最多绑定一个分类；留空表示取消分类。</p>
+        <Select
+          style={{ width: '100%' }}
+          value={categoryId || undefined}
+          onChange={(value) => setCategoryId(value ?? '')}
+          options={categoryOptions}
+          loading={categoryQ.isLoading}
+          placeholder="选择一个分类"
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          notFoundContent="该门店暂无分类"
+        />
+        <Space.Compact style={{ width: '100%', marginTop: 12 }}>
+          <Input
+            value={newCategoryName}
+            onChange={(event) => setNewCategoryName(event.target.value)}
+            placeholder="新分类名称"
+            maxLength={40}
+          />
+          <Button
+            disabled={!newCategoryName.trim()}
+            loading={createCategory.isPending}
+            onClick={() => createCategory.mutate()}
+          >新建</Button>
+        </Space.Compact>
+      </Modal>
+
+      <Modal
         title="新建服务人员"
         open={open}
         onCancel={() => setOpen(false)}
@@ -309,11 +405,12 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
 }
 
 function StaffWallCard({
-  item, binding, onQualification,
+  item, binding, onQualification, onCategory,
 }: {
   item: StaffSummary
   binding: StaffMenuBinding
   onQualification?: () => void
+  onCategory?: () => void
 }) {
   const key = bucketOf(item.state)
   return (
@@ -338,7 +435,7 @@ function StaffWallCard({
           <Avatar size={36} className="staff-avatar">{item.display_name.slice(0, 1)}</Avatar>
           <div className="staff-identity">
             <strong>{item.display_name}</strong>
-            <span>{item.code}</span>
+            <span>{item.code} · {item.category?.name ?? '未分类'}</span>
           </div>
           <span className="staff-state-pill">{stateLabel(item.state)}</span>
         </div>
@@ -361,6 +458,16 @@ function StaffWallCard({
           </span>
           {item.status !== 'active' ? <span className="pill off">停用</span> : null}
           {item.stop_rotation ? <span className="staff-no-rotation">不轮转</span> : null}
+          {onCategory ? (
+            <button
+              type="button"
+              className="staff-qual-btn"
+              onClick={(event) => { event.stopPropagation(); onCategory() }}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              分类 · {item.category?.name ?? '未分类'}
+            </button>
+          ) : null}
           {onQualification ? (
             <button
               type="button"

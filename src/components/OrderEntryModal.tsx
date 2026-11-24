@@ -25,6 +25,7 @@ import type { CatalogItem, Order, PaymentMethod, Room, StaffSummary } from '../a
 import { isServiceItem, qualifiedStaffForItem } from '../shop/orderStaff'
 import { floorLabel } from '../shop/roomGroup'
 import { formatCNY, lineAmount, sumAmounts } from '../utils/money'
+import StaffPickerModal from './StaffPickerModal'
 
 interface CartLine {
   key: string
@@ -59,6 +60,7 @@ export default function OrderEntryModal({
   const [cart, setCart] = useState<CartLine[]>([])
   const [created, setCreated] = useState<Order | null>(null)
   const [payOpen, setPayOpen] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [method, setMethod] = useState<PaymentMethod>('cash')
   // Set as soon as POST /orders returns. onError must read it from a ref:
   // setCreated lands in the next render, so the mutation's own closure would
@@ -78,6 +80,7 @@ export default function OrderEntryModal({
     setItemId(undefined)
     setRoomId(room?.public_id)
     setMethod('cash')
+    setPickerOpen(false)
   }, [open, room?.public_id])
 
   const roomsQ = useQuery({
@@ -141,6 +144,16 @@ export default function OrderEntryModal({
     if (!item) return
     setCart((prev) => [...prev, { key: crypto.randomUUID(), item, quantity: 1 }])
     setItemId(undefined)
+  }
+
+  // ADR-0024: the picker adds a service line with its executor preselected.
+  // It reuses the same cart shape, so the existing per-line editor stays
+  // authoritative and the server still revalidates qualifications on submit.
+  const addFromPicker = (item: CatalogItem, staffPublicID: string) => {
+    setCart((prev) => [
+      ...prev,
+      { key: crypto.randomUUID(), item, quantity: 1, staffId: staffPublicID },
+    ])
   }
 
   const setQuantity = (key: string, quantity: number | null) => {
@@ -291,6 +304,9 @@ export default function OrderEntryModal({
             <div className="panel-head entry-lines-head">
               <h4>明细</h4>
               <Space size={8}>
+                <Button icon={<PlusOutlined />} onClick={() => setPickerOpen(true)}>
+                  添加服务员
+                </Button>
                 <Select
                   style={{ width: 320 }}
                   placeholder="搜索项目后加入明细"
@@ -453,6 +469,15 @@ export default function OrderEntryModal({
           </div>
         ) : null}
       </Modal>
+
+      <StaffPickerModal
+        open={pickerOpen}
+        shopId={shopId}
+        staff={staffList}
+        items={catalogQ.data?.data ?? []}
+        onClose={() => setPickerOpen(false)}
+        onAdd={addFromPicker}
+      />
 
       <Modal
         title="收款"

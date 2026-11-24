@@ -109,6 +109,17 @@ export interface CatalogItem {
   version: number
   created_at: string
   updated_at: string
+  /** ADR-0024: read-only grouping for the order entry staff picker. */
+  category_public_id?: string | null
+  category_name?: string | null
+}
+
+export interface CatalogCategory {
+  public_id: string
+  parent_id: string | null
+  code: string
+  name: string
+  sort_order: number
 }
 
 export interface CreateCatalogItemRequest {
@@ -117,6 +128,7 @@ export interface CreateCatalogItemRequest {
   type: 'product' | 'service'
   base_price: string
   duration_minutes?: number
+  category_public_id?: string
 }
 
 export interface UpdateCatalogItemRequest {
@@ -125,6 +137,7 @@ export interface UpdateCatalogItemRequest {
   active: boolean
   version: number
   duration_minutes?: number
+  category_public_id?: string
 }
 
 export interface UpdateShopRequest {
@@ -165,6 +178,32 @@ export interface QueueDetail extends Queue {
   staff: StaffRef[]
 }
 
+/** ADR-0024: shop-scoped classification metadata; not a permission or qualification. */
+export interface StaffCategoryRef {
+  public_id: string
+  code: string
+  name: string
+}
+
+export interface StaffCategory extends StaffCategoryRef {
+  status: string
+  sort_order: number
+  version: number
+}
+
+export interface CreateStaffCategoryRequest {
+  code: string
+  name: string
+  sort_order?: number
+}
+
+export interface UpdateStaffCategoryRequest {
+  name?: string
+  sort_order?: number
+  status?: 'active' | 'inactive'
+  version: number
+}
+
 export interface Staff {
   public_id: string
   code: string
@@ -174,6 +213,7 @@ export interface Staff {
   version: number
   created_at: string
   updated_at: string
+  category?: StaffCategoryRef | null
 }
 
 export interface StaffDetail extends Staff {
@@ -293,6 +333,8 @@ export interface UpdateStaffRequest {
   display_name?: string
   status?: 'active' | 'inactive'
   duty_status?: 'on' | 'off'
+  /** ADR-0024: pass "" to clear the category. */
+  category_public_id?: string
   version: number
 }
 

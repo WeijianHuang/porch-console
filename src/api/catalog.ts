@@ -2,6 +2,7 @@ import { api } from './client'
 import type {
   ApiEnvelope,
   ApiList,
+  CatalogCategory,
   CatalogItem,
   CreateCatalogItemRequest,
   UpdateCatalogItemRequest,
@@ -12,6 +13,8 @@ export const catalogApi = {
     api.get<ApiList<CatalogItem>>(
       `/api/v1/catalog-items${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
     ),
+  categories: () =>
+    api.get<ApiEnvelope<CatalogCategory[]>>('/api/v1/catalog-categories'),
   create: (body: CreateCatalogItemRequest) =>
     api.post<ApiEnvelope<CatalogItem>>('/api/v1/catalog-items', body),
   update: (id: string, body: UpdateCatalogItemRequest) =>

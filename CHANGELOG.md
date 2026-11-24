@@ -6,6 +6,11 @@
 
 ### 新增
 
+- **服务人员分类与开单辅助选人（前端 ADR-0008，对齐后端 ADR-0024 / schema 13）**：
+  - `api/types.ts` 增 `StaffCategory` / `CatalogCategory` 与服务人员、目录项分类投影；新增 `src/api/staffCategories.ts`，`catalogApi.categories()` 与 `queryKeys` 增分类键。
+  - 服务人员页卡片显示分类，并提供「分类」单选弹窗（可清空、可就地新建分类），写走 `PATCH /staff/{staffId}` 的 `category_public_id` 与 `POST /staff-categories`。
+  - 开单弹窗新增「添加服务员」按钮；`StaffPickerModal` 按分类 / 状态筛选服务人员卡片，选中后按服务项分类筛选表格，点「添加」把服务项连带执行人加入购物车；无资质禁用添加，弹窗保持打开可连续添加，购物车逐行仍可改派。
+  - 术语全部通用化，参考图只作为交互顺序依据；验证：typecheck / lint / 39 项单测 / 生产构建全绿。
 - **服务项资质与明细执行服务员（前端 ADR-0007，对齐后端 ADR-0023 / schema 12）**：
   - 服务人员卡新增「服务项 N」入口（`queue.write` 可见，按钮不冒泡到卡片菜单）：多选启用中的服务目录项，走 `PUT /staff/{staffId}/service-items` 全量替换，保存后失效 `staff` / `staffDetail` 缓存。
   - 开单弹窗购物车按行选人：服务项下拉标「需服务员」并渲染有资质人员选择框（只按 `status='active'` + `service_item_ids` 过滤，在岗 / 离岗仅作提示）；商品行显示「—」不绑定。任一服务行缺人即禁用提交，mutation 内再判一次并提示，避免绕过前端校验。
