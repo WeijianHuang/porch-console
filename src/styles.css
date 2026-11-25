@@ -3000,6 +3000,125 @@ textarea {
 .picker-add-link.ant-btn:disabled {
   color: var(--ink-400) !important;
 }
+
+/* ADR-0024: add-staff picker (reference image 2) */
+.staff-picker-state-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0 10px;
+}
+.staff-state-chip {
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  background: var(--ink-400);
+  color: #fff;
+  font-size: 12px;
+  opacity: 0.55;
+  cursor: pointer;
+}
+.staff-state-chip.is-active {
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--amber-100);
+}
+.staff-state-chip.is-available { background: var(--forest-500); }
+.staff-state-chip.is-queued { background: var(--amber-500); }
+.staff-state-chip.is-serving { background: #3f7cac; }
+.staff-state-chip.is-designated { background: #8159b5; }
+.staff-state-chip.is-reserved { background: #6f6bb0; }
+.staff-state-chip.is-overtime { background: #c06a3a; }
+.staff-state-chip.is-leave { background: #8a8f8b; }
+.staff-state-chip.is-off { background: #6c7370; }
+.staff-picker-group-tabs .ant-tabs-nav {
+  margin-bottom: 0;
+}
+.staff-picker-group-tabs .ant-tabs-tab {
+  padding: 6px 2px 8px;
+  color: var(--ink-600);
+  font-size: 12px;
+}
+.staff-picker-group-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--amber-500) !important;
+  font-weight: 600;
+}
+.staff-picker-group-tabs .ant-tabs-ink-bar {
+  background: var(--amber-500) !important;
+}
+.staff-picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 0 16px;
+}
+.staff-picker-person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 88px;
+  min-height: 80px;
+  padding: 8px 6px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--ink-400);
+  border-radius: 6px;
+  background: #d9dddc;
+  color: var(--ink-800);
+  cursor: pointer;
+}
+.staff-picker-person:hover {
+  border-color: var(--amber-500);
+}
+.staff-picker-person.is-selected {
+  background: var(--amber-100);
+  outline: 2px solid var(--amber-500);
+}
+.staff-picker-person.is-available { border-left-color: var(--forest-500); }
+.staff-picker-person.is-queued { border-left-color: var(--amber-500); }
+.staff-picker-person.is-serving { border-left-color: #3f7cac; }
+.staff-picker-person.is-designated { border-left-color: #8159b5; }
+.staff-picker-person.is-reserved { border-left-color: #6f6bb0; }
+.staff-picker-person.is-overtime { border-left-color: #c06a3a; }
+.staff-picker-person.is-leave,
+.staff-picker-person.is-off { border-left-color: #8a8f8b; }
+.staff-picker-person strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.staff-picker-person span {
+  color: var(--ink-600);
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
+}
+.staff-picker-lower {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+.staff-picker-action-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.staff-picker-action-tabs button {
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  padding: 5px 14px;
+  background: var(--canvas);
+  color: var(--ink-600);
+  font-size: 12px;
+  cursor: pointer;
+}
+.staff-picker-action-tabs button.is-active {
+  background: var(--surface);
+  color: var(--amber-500);
+  font-weight: 600;
+}
 .staff-card-foot .staff-qual-btn {
   max-width: 160px;
   overflow: hidden;

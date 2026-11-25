@@ -25,6 +25,7 @@ import type { CatalogItem, Order, PaymentMethod, Room, StaffSummary } from '../a
 import { isServiceItem, qualifiedStaffForItem } from '../shop/orderStaff'
 import { floorLabel } from '../shop/roomGroup'
 import { formatCNY, lineAmount, sumAmounts } from '../utils/money'
+import ServicePickerModal from './ServicePickerModal'
 import StaffPickerModal from './StaffPickerModal'
 
 interface CartLine {
@@ -60,7 +61,8 @@ export default function OrderEntryModal({
   const [cart, setCart] = useState<CartLine[]>([])
   const [created, setCreated] = useState<Order | null>(null)
   const [payOpen, setPayOpen] = useState(false)
-  const [pickerOpen, setPickerOpen] = useState(false)
+  const [staffPickerOpen, setStaffPickerOpen] = useState(false)
+  const [servicePickerOpen, setServicePickerOpen] = useState(false)
   const [method, setMethod] = useState<PaymentMethod>('cash')
   // Set as soon as POST /orders returns. onError must read it from a ref:
   // setCreated lands in the next render, so the mutation's own closure would
@@ -80,7 +82,8 @@ export default function OrderEntryModal({
     setItemId(undefined)
     setRoomId(room?.public_id)
     setMethod('cash')
-    setPickerOpen(false)
+    setStaffPickerOpen(false)
+    setServicePickerOpen(false)
   }, [open, room?.public_id])
 
   const roomsQ = useQuery({
@@ -304,10 +307,10 @@ export default function OrderEntryModal({
             <div className="panel-head entry-lines-head">
               <h4>明细</h4>
               <Space size={8}>
-                <Button icon={<PlusOutlined />} onClick={() => setPickerOpen(true)}>
+                <Button icon={<PlusOutlined />} onClick={() => setStaffPickerOpen(true)}>
                   添加服务员
                 </Button>
-                <Button icon={<PlusOutlined />} onClick={() => setPickerOpen(true)}>
+                <Button icon={<PlusOutlined />} onClick={() => setServicePickerOpen(true)}>
                   添加服务
                 </Button>
                 <Select
@@ -474,11 +477,20 @@ export default function OrderEntryModal({
       </Modal>
 
       <StaffPickerModal
-        open={pickerOpen}
+        open={staffPickerOpen}
         shopId={shopId}
         staff={staffList}
         items={catalogQ.data?.data ?? []}
-        onClose={() => setPickerOpen(false)}
+        onClose={() => setStaffPickerOpen(false)}
+        onAdd={addFromPicker}
+      />
+
+      <ServicePickerModal
+        open={servicePickerOpen}
+        shopId={shopId}
+        staff={staffList}
+        items={catalogQ.data?.data ?? []}
+        onClose={() => setServicePickerOpen(false)}
         onAdd={addFromPicker}
       />
 
