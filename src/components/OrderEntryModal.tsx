@@ -307,6 +307,9 @@ export default function OrderEntryModal({
                 <Button icon={<PlusOutlined />} onClick={() => setPickerOpen(true)}>
                   添加服务员
                 </Button>
+                <Button icon={<PlusOutlined />} onClick={() => setPickerOpen(true)}>
+                  添加服务
+                </Button>
                 <Select
                   style={{ width: 320 }}
                   placeholder="搜索项目后加入明细"
