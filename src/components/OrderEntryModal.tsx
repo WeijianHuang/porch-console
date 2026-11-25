@@ -305,7 +305,7 @@ export default function OrderEntryModal({
               <h4>明细</h4>
               <Space size={8}>
                 <Button icon={<PlusOutlined />} onClick={() => setPickerOpen(true)}>
-                  添加服务员
+                  添加服务
                 </Button>
                 <Select
                   style={{ width: 320 }}

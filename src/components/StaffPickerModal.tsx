@@ -1,20 +1,19 @@
 /**
- * Assisted staff picker (porch-console ADR-0008 / porch-os ADR-0024).
+ * Assisted service picker (porch-console ADR-0008 / porch-os ADR-0024).
  *
- * Layout follows the reference screen only in interaction order: filter
- * people by category and state, pick one person, then add qualified service
- * items to the order cart. The picker never grants capability by itself —
- * qualifications still come from ADR-0023 through qualifiedStaffForItem().
+ * The reference screen uses a single toolbar row, item-group tabs and a flat
+ * table. This component keeps that interaction order: choose one executor,
+ * choose an item group, then add qualified services repeatedly. Qualification
+ * still comes from ADR-0023 through qualifiedStaffForItem().
  */
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, Empty, Modal, Table, Tag, Tooltip, message } from 'antd'
+import { Button, Modal, Radio, Select, Table, Tabs, Tooltip, message } from 'antd'
 import { catalogApi } from '../api/catalog'
 import { queryKeys } from '../api/keys'
 import { staffCategoriesApi } from '../api/staffCategories'
 import type { CatalogItem, StaffSummary } from '../api/types'
 import { isServiceItem, qualifiedStaffForItem } from '../shop/orderStaff'
-import { STAFF_BUCKETS, bucketOf, stateLabel } from '../shop/staffStatus'
 import { formatCNY } from '../utils/money'
 
 interface StaffPickerModalProps {
@@ -32,7 +31,6 @@ export default function StaffPickerModal({
   open, shopId, staff, items, onClose, onAdd,
 }: StaffPickerModalProps) {
   const [categoryId, setCategoryId] = useState(ALL)
-  const [bucket, setBucket] = useState(ALL)
   const [itemCategoryId, setItemCategoryId] = useState(ALL)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -50,24 +48,41 @@ export default function StaffPickerModal({
   useEffect(() => {
     if (!open) return
     setCategoryId(ALL)
-    setBucket(ALL)
     setItemCategoryId(ALL)
     setSelectedId(null)
   }, [open])
 
-  const categories = (categoryQ.data?.data ?? []).filter((c) => c.status === 'active')
-  const catalogCategories = catalogCategoryQ.data?.data ?? []
-  const selectedStaff = staff.find((s) => s.public_id === selectedId) ?? null
-
-  const visibleStaff = useMemo(
-    () => staff.filter((s) => {
-      if (s.status !== 'active') return false
-      if (categoryId !== ALL && s.category?.public_id !== categoryId) return false
-      if (bucket !== ALL && bucketOf(s.state) !== bucket) return false
-      return true
-    }),
-    [staff, categoryId, bucket],
+  const categories = useMemo(
+    () => (categoryQ.data?.data ?? []).filter((c) => c.status === 'active'),
+    [categoryQ.data?.data],
   )
+  const catalogCategories = useMemo(
+    () => catalogCategoryQ.data?.data ?? [],
+    [catalogCategoryQ.data?.data],
+  )
+
+  const selectableStaff = useMemo(
+    () => staff.filter((s) =>
+      s.status === 'active' &&
+      (categoryId === ALL || s.category?.public_id === categoryId)),
+    [staff, categoryId],
+  )
+
+  const staffOptions = useMemo(
+    () => selectableStaff.map((person) => ({
+      value: person.public_id,
+      label: `${person.display_name} · ${person.code} · ${person.category?.name ?? '未分类'}`,
+    })),
+    [selectableStaff],
+  )
+
+  useEffect(() => {
+    if (selectedId && !selectableStaff.some((person) => person.public_id === selectedId)) {
+      setSelectedId(null)
+    }
+  }, [selectableStaff, selectedId])
+
+  const selectedStaff = staff.find((s) => s.public_id === selectedId) ?? null
 
   const serviceItems = useMemo(
     () => items.filter((item) => {
@@ -82,7 +97,7 @@ export default function StaffPickerModal({
 
   const addItem = (item: CatalogItem) => {
     if (!selectedStaff) {
-      message.warning('请先选择一位服务员')
+      message.warning('请先选择执行服务员')
       return
     }
     if (!isQualified(item)) {
@@ -92,111 +107,81 @@ export default function StaffPickerModal({
     onAdd(item, selectedStaff.public_id)
   }
 
+  const itemTabs = useMemo(
+    () => [
+      { key: ALL, label: '全部项目' },
+      ...catalogCategories.map((category) => ({
+        key: category.public_id,
+        label: category.name,
+      })),
+    ],
+    [catalogCategories],
+  )
+
   return (
     <Modal
-      title="选择服务员"
+      title="添加项目"
       open={open}
       onCancel={onClose}
       width={1120}
-      footer={<Button onClick={onClose}>关闭</Button>}
+      footer={<Button onClick={onClose}>取消</Button>}
       destroyOnHidden
       maskClosable={false}
     >
-      <div className="picker-filter-block">
-        <span className="picker-filter-label">分类</span>
-        <div className="picker-chips">
-          <button
-            type="button"
-            className={`picker-chip ${categoryId === ALL ? 'is-active' : ''}`}
-            onClick={() => setCategoryId(ALL)}
-          >全部</button>
-          {categories.map((category) => (
-            <button
-              key={category.public_id}
-              type="button"
-              className={`picker-chip ${categoryId === category.public_id ? 'is-active' : ''}`}
-              onClick={() => setCategoryId(category.public_id)}
-            >{category.name}</button>
-          ))}
-        </div>
-      </div>
-
-      <div className="picker-filter-block">
-        <span className="picker-filter-label">状态</span>
-        <div className="picker-chips">
-          <button
-            type="button"
-            className={`picker-chip ${bucket === ALL ? 'is-active' : ''}`}
-            onClick={() => setBucket(ALL)}
-          >全部</button>
-          {STAFF_BUCKETS.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={`picker-chip ${bucket === item.key ? 'is-active' : ''}`}
-              onClick={() => setBucket(item.key)}
-            >{item.label}</button>
-          ))}
-        </div>
-      </div>
-
-      <div className="picker-staff-grid">
-        {visibleStaff.length === 0 ? (
-          <Empty description="该筛选条件下没有可用服务员" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-        ) : visibleStaff.map((person) => (
-          <button
-            key={person.public_id}
-            type="button"
-            className={`picker-staff-card ${selectedId === person.public_id ? 'is-selected' : ''}`}
-            onClick={() => setSelectedId(person.public_id)}
+      <div className="picker-toolbar">
+        <label className="picker-toolbar-field">
+          <span>执行服务员</span>
+          <Select
+            className="picker-staff-select"
+            showSearch
+            allowClear
+            placeholder="选择服务员"
+            optionFilterProp="label"
+            value={selectedId}
+            options={staffOptions}
+            onChange={(value) => setSelectedId(value ?? null)}
+          />
+        </label>
+        <div className="picker-toolbar-field">
+          <span>服务分组</span>
+          <Radio.Group
+            value={categoryId}
+            onChange={(event) => setCategoryId(event.target.value)}
           >
-            <strong>{person.display_name}</strong>
-            <span>{person.code}</span>
-            <span>{person.category?.name ?? '未分类'}</span>
-            <span className="picker-staff-state">{stateLabel(person.state)}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="picker-selected-bar">
-        {selectedStaff ? (
-          <span>已选服务员：<Tag color="blue">{selectedStaff.display_name} · {selectedStaff.code}</Tag></span>
-        ) : (
-          <span className="muted">请先选择一位服务员，再添加下方服务项</span>
-        )}
-      </div>
-
-      <div className="picker-filter-block">
-        <span className="picker-filter-label">服务项分类</span>
-        <div className="picker-chips">
-          <button
-            type="button"
-            className={`picker-chip ${itemCategoryId === ALL ? 'is-active' : ''}`}
-            onClick={() => setItemCategoryId(ALL)}
-          >全部</button>
-          {catalogCategories.map((category) => (
-            <button
-              key={category.public_id}
-              type="button"
-              className={`picker-chip ${itemCategoryId === category.public_id ? 'is-active' : ''}`}
-              onClick={() => setItemCategoryId(category.public_id)}
-            >{category.name}</button>
-          ))}
+            <Radio value={ALL}>全部</Radio>
+            {categories.map((category) => (
+              <Radio key={category.public_id} value={category.public_id}>
+                {category.name}
+              </Radio>
+            ))}
+          </Radio.Group>
         </div>
       </div>
+
+      <Tabs
+        className="picker-item-tabs"
+        activeKey={itemCategoryId}
+        onChange={setItemCategoryId}
+        items={itemTabs}
+      />
 
       <Table
-        className="data-table"
+        className="data-table picker-service-table"
         rowKey="public_id"
         size="small"
         pagination={false}
         dataSource={serviceItems}
+        scroll={{ y: 360 }}
         locale={{ emptyText: '该分类下没有可用服务项' }}
         columns={[
-          { title: '编号', dataIndex: 'sku', width: 120 },
+          { title: '编号', dataIndex: 'sku', width: 90 },
           { title: '项目名', dataIndex: 'name' },
           {
-            title: '持续时间', dataIndex: 'duration_minutes', width: 110,
+            title: '服务类型', dataIndex: 'type', width: 110,
+            render: (value: string) => value === 'service' ? '门店' : '商品',
+          },
+          {
+            title: '持续时间', dataIndex: 'duration_minutes', width: 120,
             render: (value: number | null) => value ? `${value} 分钟` : '—',
           },
           {
@@ -207,13 +192,14 @@ export default function StaffPickerModal({
             title: '操作', key: 'action', width: 90, align: 'center',
             render: (_: unknown, item: CatalogItem) => {
               const reason = !selectedStaff
-                ? '请先选择一位服务员'
+                ? '请先选择执行服务员'
                 : isQualified(item) ? '' : '该服务员没有这项服务的资质'
               return (
                 <Tooltip title={reason || undefined}>
                   <Button
                     type="link"
                     size="small"
+                    className="picker-add-link"
                     disabled={Boolean(reason)}
                     onClick={() => addItem(item)}
                   >添加</Button>

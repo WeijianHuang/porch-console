@@ -1,12 +1,12 @@
 # ADR-0008 · 服务人员分类与开单辅助选人
 
-- 状态：Accepted（2026-11-24）
+- 状态：Accepted（2026-11-24；2026-11-25 布局复核，仅调整前端展示与文案）
 - 对齐后端：[ADR-0024](../../../porch-os/docs/decisions/0024-staff-categories-and-assisted-order-entry.md)，前端承接其服务人员分类、目录项分组与开单辅助选人契约
 - 影响：新增 `src/api/staffCategories.ts`、扩展 `src/api/types.ts` / `src/api/queues.ts` / `src/api/catalog.ts`；新增 `src/components/StaffPickerModal.tsx`；改造 `src/components/OrderEntryModal.tsx` 与 `src/pages/StaffPage.tsx`；同步 `src/shop/orderStaff.ts` 与样式
 
 ## 背景
 
-后端 ADR-0024 给服务人员增加店内分类（一人最多一个），并给目录项增加全局分组。用户同时要求在开单弹窗增加「添加服务员」按钮，点击后打开的页面参考给定截图：上方是分类 / 状态筛选与服务人员卡片，下方是分组后的服务项表格，每行有「添加」操作。
+后端 ADR-0024 给服务人员增加店内分类（一人最多一个），并给目录项增加全局分组。用户同时要求在开单弹窗提供按服务员添加服务的入口；经 2026-11-25 布局复核，点击后打开的页面对齐最新截图：上方是执行人下拉与服务分组单选，中部是项目分类页签，下方是带「添加」操作的服务项表格。
 
 前端此前只有两条路径：
 
@@ -33,18 +33,19 @@
 - 保存走 `PATCH /staff/{staffId}`，携带当前 `version`；成功后刷新服务人员列表与详情缓存。
 - 分类定义通过同一个弹窗里的轻输入框创建（`POST /staff-categories`），不另开页面。
 
-### 3. 开单弹窗「添加服务员」
+### 3. 开单弹窗「添加服务」
 
-- 「明细」区标题旁新增 **添加服务员** 按钮，与项目下拉框并列。
-- 点击打开 `StaffPickerModal`：
-  - 顶部第一排：分类标签，含「全部」；值来自 `staffCategoriesApi.list(shopId)`。
-  - 顶部第二排：状态标签，含「全部」；值来自 `StaffSummary.state`，标签文案只使用通用状态名。
-  - 中部：服务人员卡片网格，单选；卡片显示姓名、工号、分类、状态。
-  - 下部：服务项分类标签（来自 `catalogApi.categories()`，含「全部」）+ 表格：编号 / 项目名 / 持续时间 / 价格 / 操作。
-  - 表格只列 `type='service' && active` 的目录项；「添加」按钮在未选服务员或该服务员无资质时禁用。
+> 2026-11-25 布局复核：按新参考图收敛为「单行工具栏 + 项目页签 + 六列表格」。本调整只改前端布局与文案，不改变 ADR-0024 的 schema / 端点契约。
+
+- 「明细」区标题旁新增 **添加服务** 按钮，与项目下拉框并列。
+- 点击打开 `StaffPickerModal`，标题为「添加项目」：
+  - 顶部一行为「执行服务员」下拉框与「服务分组」单选组；下拉只列 `status='active'` 的服务员，标签含姓名、工号、分类；单选项来自 `staffCategoriesApi.list(shopId)`，含「全部」，切换后清空不再可选的执行人。
+  - 「服务分组」只过滤可选人员，不把分类当作资质或授权来源。
+  - 中部为项目分类页签，来自 `catalogApi.categories()`，含「全部项目」；页签切换只过滤表格。
+  - 表格列为编号 / 项目名 / 服务类型 / 持续时间 / 价格 / 操作；只列 `type='service' && active` 的目录项。「服务类型」由目录项类型投影，不新增 schema 字段；「添加」按钮在未选服务员或该服务员无资质时禁用。
 - 点「添加」时把 `{ item, quantity: 1, staffId: selected.public_id }` 追加到购物车；弹窗保持打开，允许连续添加；同一项目允许重复添加形成多条明细。
 - 关闭弹窗后，购物车每行仍可改派执行服务员；`staffMissing` 与提交禁用规则不变。
-- 分类 / 状态只是**筛选与展示**，不改变 ADR-0007 的资格规则：`qualifiedStaffForItem()` 仍只按 `status='active'` 与 `service_item_ids` 过滤，不按 `duty_status` / `state` 过滤。
+- 分类筛选只是**收窄可选项**，不改变 ADR-0007 的资格规则：`qualifiedStaffForItem()` 仍只按 `status='active'` 与 `service_item_ids` 过滤，不按 `duty_status` / `state` 过滤。
 
 ### 4. 术语与脱钩
 
