@@ -112,6 +112,8 @@ export interface CatalogItem {
   /** ADR-0024: read-only grouping for the order entry staff picker. */
   category_public_id?: string | null
   category_name?: string | null
+  /** Read-only catalog metadata for display-only columns; never written to an order line. */
+  attributes?: Record<string, unknown>
 }
 
 export interface CatalogCategory {

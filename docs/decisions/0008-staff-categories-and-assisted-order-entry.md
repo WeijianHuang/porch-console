@@ -1,6 +1,6 @@
 # ADR-0008 · 服务人员分类与开单辅助选人
 
-- 状态：Accepted（2026-11-24；2026-11-25 布局复核，仅调整前端展示与文案）
+- 状态：Accepted（2026-11-24；2026-11-25 两次布局复核，仅调整前端展示与文案，新增独立商品入口）
 - 对齐后端：[ADR-0024](../../../porch-os/docs/decisions/0024-staff-categories-and-assisted-order-entry.md)，前端承接其服务人员分类、目录项分组与开单辅助选人契约
 - 影响：新增 `src/api/staffCategories.ts`、扩展 `src/api/types.ts` / `src/api/queues.ts` / `src/api/catalog.ts`；新增 `src/components/StaffPickerModal.tsx`；改造 `src/components/OrderEntryModal.tsx` 与 `src/pages/StaffPage.tsx`；同步 `src/shop/orderStaff.ts` 与样式
 
@@ -21,7 +21,7 @@
 
 - 新增 `StaffCategoryRef` / `StaffCategory` / `CreateStaffCategoryRequest` / `UpdateStaffCategoryRequest` 类型。
 - `Staff` / `StaffSummary` / `StaffDetail` 增量 `category: StaffCategoryRef | null`。
-- `CatalogItem` 增量 `category_public_id` / `category_name`（可空）。
+- `CatalogItem` 增量 `category_public_id` / `category_name`（可空）与只读 `attributes`；后者只供商品弹窗业绩列展示，不写回服务端。
 - `UpdateStaffRequest` 增量 `category_public_id?: string | null`；`staffApi` 复用既有 `update()`，不新增改派端点。
 - `staffCategoriesApi` 提供 `list` / `create` / `update`，写操作沿用统一 `Idempotency-Key` 注入。
 - 服务人员分类读用 `queue.read`，写用 `queue.write`；服务项分类只读复用 `catalogApi.categories()`。
@@ -33,11 +33,11 @@
 - 保存走 `PATCH /staff/{staffId}`，携带当前 `version`；成功后刷新服务人员列表与详情缓存。
 - 分类定义通过同一个弹窗里的轻输入框创建（`POST /staff-categories`），不另开页面。
 
-### 3. 开单弹窗两个入口
+### 3. 开单弹窗三个入口
 
-> 2026-11-25 双图复核：两张参考图对应两套独立交互，不是同一入口的两种文案。此次拆分只改前端布局，不改变 ADR-0024 的 schema / 端点契约。
+> 2026-11-25 三次复核：三张参考图对应三套独立交互，不是同一入口的不同文案。拆分只改前端展示，不改变 ADR-0024 的 schema / 端点契约；商品入口遵守 ADR-0023「商品明细不绑定服务员」。
 
-- 「明细」区标题旁同时显示 **添加服务员** 与 **添加服务** 两个按钮，与项目下拉框并列，分别打开 `StaffPickerModal` 与 `ServicePickerModal`。
+- 「明细」区标题旁同时显示 **添加服务员**、**添加服务**、**添加商品** 三个按钮，与项目下拉框并列，分别打开 `StaffPickerModal`、`ServicePickerModal` 与 `ProductPickerModal`。
 
 **添加服务（`ServicePickerModal`，参考图 1）**
 
@@ -51,11 +51,20 @@
 - 下半区依次为状态动作标签（`MANUAL_STATES` 通用动作）、「执行服务员」下拉、项目分类页签与表格；表格列为编号 / 项目名 / 持续时间 / 价格 / 操作。
 - 人员网格与下拉共享同一个 `selectedId`；点「添加」同样把服务项连带执行人加入购物车。
 
-两个弹窗共用下列不变量：
+**添加商品（`ProductPickerModal`，参考图 3）**
+
+- 弹窗标题「添加产品」。顶部为「产品数量」输入框与两个「关联人员（仅展示）」下拉；下拉只列 `status='active'` 的服务员，但**不写入订单明细**——ADR-0023 明确商品行不绑定执行服务员，后端也会拒绝商品行带 `staff_public_id`。
+- 中部为商品分类页签：只列实际挂有 `type='product' && active` 目录项的 `catalog_categories`，含「全部商品」，不与服务的分类页签混用。
+- 表格列为编号 / 产品名 / 业绩一 / 业绩二 / 价格 / 操作。两列业绩来自目录项 `attributes` 的只读投影（`performance_primary` / `performance_secondary`），只用于展示，不参与金额计算，也不写入订单行。
+- 点「添加」按顶部数量把商品项追加到购物车，`staffId` 留空；弹窗保持打开，可连续添加。
+
+两个服务类弹窗共用下列不变量：
 
 - 点「添加」把 `{ item, quantity: 1, staffId: selected.public_id }` 追加到购物车；弹窗保持打开，允许连续添加；同一项目允许重复添加形成多条明细。
 - 关闭弹窗后，购物车每行仍可改派执行服务员；`staffMissing` 与提交禁用规则不变。
 - 状态 / 分类筛选只是**收窄可选项**，不改变 ADR-0007 的资格规则：`qualifiedStaffForItem()` 仍只按 `status='active'` 与 `service_item_ids` 过滤，不按 `duty_status` / `state` 过滤。
+
+商品弹窗不参与上述执行人规则：购物车里的商品行执行人列显示「—」，提交时不做服务资质校验。
 
 ### 4. 术语与脱钩
 

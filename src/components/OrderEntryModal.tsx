@@ -25,6 +25,7 @@ import type { CatalogItem, Order, PaymentMethod, Room, StaffSummary } from '../a
 import { isServiceItem, qualifiedStaffForItem } from '../shop/orderStaff'
 import { floorLabel } from '../shop/roomGroup'
 import { formatCNY, lineAmount, sumAmounts } from '../utils/money'
+import ProductPickerModal from './ProductPickerModal'
 import ServicePickerModal from './ServicePickerModal'
 import StaffPickerModal from './StaffPickerModal'
 
@@ -63,6 +64,7 @@ export default function OrderEntryModal({
   const [payOpen, setPayOpen] = useState(false)
   const [staffPickerOpen, setStaffPickerOpen] = useState(false)
   const [servicePickerOpen, setServicePickerOpen] = useState(false)
+  const [productPickerOpen, setProductPickerOpen] = useState(false)
   const [method, setMethod] = useState<PaymentMethod>('cash')
   // Set as soon as POST /orders returns. onError must read it from a ref:
   // setCreated lands in the next render, so the mutation's own closure would
@@ -84,6 +86,7 @@ export default function OrderEntryModal({
     setMethod('cash')
     setStaffPickerOpen(false)
     setServicePickerOpen(false)
+    setProductPickerOpen(false)
   }, [open, room?.public_id])
 
   const roomsQ = useQuery({
@@ -156,6 +159,16 @@ export default function OrderEntryModal({
     setCart((prev) => [
       ...prev,
       { key: crypto.randomUUID(), item, quantity: 1, staffId: staffPublicID },
+    ])
+  }
+
+  // ADR-0023: product lines never carry an executor. The product picker's
+  // attribution selectors are display-only, so only item and quantity reach
+  // the cart; the server still rejects any staff id on a product line.
+  const addProductFromPicker = (item: CatalogItem, quantity: number) => {
+    setCart((prev) => [
+      ...prev,
+      { key: crypto.randomUUID(), item, quantity },
     ])
   }
 
@@ -312,6 +325,9 @@ export default function OrderEntryModal({
                 </Button>
                 <Button icon={<PlusOutlined />} onClick={() => setServicePickerOpen(true)}>
                   添加服务
+                </Button>
+                <Button icon={<PlusOutlined />} onClick={() => setProductPickerOpen(true)}>
+                  添加商品
                 </Button>
                 <Select
                   style={{ width: 320 }}
@@ -492,6 +508,14 @@ export default function OrderEntryModal({
         items={catalogQ.data?.data ?? []}
         onClose={() => setServicePickerOpen(false)}
         onAdd={addFromPicker}
+      />
+
+      <ProductPickerModal
+        open={productPickerOpen}
+        staff={staffList}
+        items={catalogQ.data?.data ?? []}
+        onClose={() => setProductPickerOpen(false)}
+        onAdd={addProductFromPicker}
       />
 
       <Modal

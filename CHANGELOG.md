@@ -9,8 +9,9 @@
 - **服务人员分类与开单辅助选人（前端 ADR-0008，对齐后端 ADR-0024 / schema 13）**：
   - `api/types.ts` 增 `StaffCategory` / `CatalogCategory` 与服务人员、目录项分类投影；新增 `src/api/staffCategories.ts`，`catalogApi.categories()` 与 `queryKeys` 增分类键。
   - 服务人员页卡片显示分类，并提供「分类」单选弹窗（可清空、可就地新建分类），写走 `PATCH /staff/{staffId}` 的 `category_public_id` 与 `POST /staff-categories`。
-  - 开单弹窗同时显示「添加服务员」与「添加服务」两个按钮，分别打开 `StaffPickerModal` 与 `ServicePickerModal`：前者按参考图 2 用状态标签、人员分组页签、人员网格与下方服务表格选人加项；后者按参考图 1 用单行工具栏、项目页签与六列表格加项。
-  - 两个弹窗共用 `onAdd`，点「添加」把服务项连带执行人加入购物车，无资质禁用，弹窗保持打开可连续添加，购物车逐行仍可改派；状态 / 分类只收窄可选项，不改变 ADR-0007 资质规则，schema / 端点不变。
+  - 开单弹窗同时显示「添加服务员」「添加服务」「添加商品」三个按钮，分别打开 `StaffPickerModal`、`ServicePickerModal` 与 `ProductPickerModal`：前者按参考图 2 用状态标签、人员分组页签、人员网格与下方服务表格选人加项；中者按参考图 1 用单行工具栏、项目页签与六列表格加项；后者按参考图 3 用产品数量、两个仅展示的关联人员下拉、商品分类页签与编号 / 产品名 / 业绩一 / 业绩二 / 价格 / 操作六列表格。
+  - 两个服务弹窗共用 `onAdd`，点「添加」把服务项连带执行人加入购物车，无资质禁用，弹窗保持打开可连续添加，购物车逐行仍可改派；状态 / 分类只收窄可选项，不改变 ADR-0007 资质规则。
+  - `ProductPickerModal` 按顶部数量加入商品，`staffId` 留空；业绩两列来自 `CatalogItem.attributes` 只读投影，关联人员下拉不写库——ADR-0023 商品行不绑定服务员，schema / 端点不变。
   - 术语全部通用化，参考图只作为交互顺序依据；验证：typecheck / lint / 39 项单测 / 生产构建全绿。
 - **服务项资质与明细执行服务员（前端 ADR-0007，对齐后端 ADR-0023 / schema 12）**：
   - 服务人员卡新增「服务项 N」入口（`queue.write` 可见，按钮不冒泡到卡片菜单）：多选启用中的服务目录项，走 `PUT /staff/{staffId}/service-items` 全量替换，保存后失效 `staff` / `staffDetail` 缓存。

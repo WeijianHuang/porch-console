@@ -3001,6 +3001,17 @@ textarea {
   color: var(--ink-400) !important;
 }
 
+/* Add-product picker (third reference image): display-only attribution. */
+.product-picker-toolbar {
+  gap: 16px;
+}
+.product-picker-toolbar .picker-staff-select {
+  width: 190px;
+}
+.product-quantity-input.ant-input-number {
+  width: 130px;
+}
+
 /* ADR-0024: add-staff picker (reference image 2) */
 .staff-picker-state-row {
   display: flex;
