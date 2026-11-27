@@ -11,7 +11,7 @@ import {
   SearchOutlined, TeamOutlined,
 } from '@ant-design/icons'
 import {
-  Avatar, Button, Dropdown, Form, Input, Modal, Select, Space, Tag, message,
+  Avatar, Button, Col, Dropdown, Form, Input, Modal, Row, Select, Space, Tag, message,
 } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { catalogApi } from '../api/catalog'
@@ -29,15 +29,31 @@ import {
   STAFF_BUCKETS, bucketOf, stateLabel, type StaffBucket,
 } from '../shop/staffStatus'
 
+type StaffGender = 'unknown' | 'male' | 'female'
+
+const GENDER_OPTIONS: { value: StaffGender; label: string }[] = [
+  { value: 'unknown', label: '未填' },
+  { value: 'male', label: '男' },
+  { value: 'female', label: '女' },
+]
+const toStaffGender = (value?: string): StaffGender =>
+  GENDER_OPTIONS.some((option) => option.value === value) ? value as StaffGender : 'unknown'
+const genderLabel = (value?: string): string =>
+  GENDER_OPTIONS.find((option) => option.value === value)?.label ?? '未填'
+
 interface StaffForm {
   code: string
   alias?: string
+  gender: StaffGender
+  phone?: string
   display_name: string
 }
 
 interface StaffEditForm {
   code: string
   alias?: string
+  gender: StaffGender
+  phone?: string
   display_name: string
   status: 'active' | 'inactive'
   duty_status: 'on' | 'off'
@@ -195,6 +211,8 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
     editForm.setFieldsValue({
       code: item.code,
       alias: item.alias ?? '',
+      gender: toStaffGender(item.gender),
+      phone: item.phone ?? '',
       display_name: item.display_name,
       status: item.status === 'inactive' ? 'inactive' : 'active',
       duty_status: item.duty_status === 'on' ? 'on' : 'off',
@@ -208,6 +226,8 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
     const body: UpdateStaffRequest = {
       code: values.code.trim(),
       alias: (values.alias ?? '').trim(),
+      gender: toStaffGender(values.gender),
+      phone: (values.phone ?? '').trim(),
       display_name: values.display_name.trim(),
       status: values.status,
       // ADR-0015: an inactive operator cannot stay on duty.
@@ -471,6 +491,8 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
               <div><span>工号</span><strong>{detailQuery.data.data.code}</strong></div>
               <div><span>姓名</span><strong>{detailQuery.data.data.display_name}</strong></div>
               <div><span>别名</span><strong>{detailQuery.data.data.alias || '—'}</strong></div>
+              <div><span>性别</span><strong>{genderLabel(detailQuery.data.data.gender)}</strong></div>
+              <div><span>手机号</span><strong>{detailQuery.data.data.phone || '—'}</strong></div>
               <div><span>状态</span><strong>{detailQuery.data.data.status === 'active' ? '启用' : '停用'}</strong></div>
               <div><span>在岗状态</span><strong>{detailQuery.data.data.duty_status === 'on' ? '在岗' : '离岗'}</strong></div>
               <div><span>分类</span><strong>{detailQuery.data.data.category?.name ?? '未分类'}</strong></div>
@@ -513,54 +535,86 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
         confirmLoading={update.isPending}
         okText="保存"
         cancelText="取消"
+        width={560}
         destroyOnHidden
       >
         <p className="qual-hint">工号在本店必须唯一；停用后会自动置为离岗。</p>
         <Form form={editForm} layout="vertical" onFinish={submitEdit}>
-          <Form.Item
-            name="code"
-            label="工号"
-            rules={[{ required: true, message: '请输入工号' }, { whitespace: true, message: '工号不能为空' }]}
-          >
-            <Input maxLength={40} placeholder="例如：S001" />
-          </Form.Item>
-          <Form.Item name="alias" label="别名" extra="可选，留空清除；用于展示与搜索">
-            <Input maxLength={60} placeholder="例如：小王" />
-          </Form.Item>
-          <Form.Item
-            name="display_name"
-            label="姓名"
-            rules={[{ required: true, message: '请输入姓名' }, { whitespace: true, message: '姓名不能为空' }]}
-          >
-            <Input maxLength={60} placeholder="例如：张三" />
-          </Form.Item>
-          <Form.Item name="status" label="状态">
-            <Select
-              options={[
-                { value: 'active', label: '启用' },
-                { value: 'inactive', label: '停用' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="duty_status" label="在岗状态">
-            <Select
-              disabled={editStatus === 'inactive'}
-              options={[
-                { value: 'on', label: '在岗' },
-                { value: 'off', label: '离岗' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="category_public_id" label="分类" extra="留空表示取消分类">
-            <Select
-              options={categoryOptions}
-              loading={categoryQ.isLoading}
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              placeholder="选择一个分类"
-            />
-          </Form.Item>
+          <div className="staff-form-section">基本信息</div>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item
+                name="code"
+                label="工号"
+                rules={[{ required: true, message: '请输入工号' }, { whitespace: true, message: '工号不能为空' }]}
+              >
+                <Input maxLength={40} placeholder="例如：S001" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="display_name"
+                label="姓名"
+                rules={[{ required: true, message: '请输入姓名' }, { whitespace: true, message: '姓名不能为空' }]}
+              >
+                <Input maxLength={60} placeholder="例如：张三" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="alias" label="别名" extra="可选，留空清除；用于展示与搜索">
+                <Input maxLength={60} placeholder="例如：小王" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="gender" label="性别">
+                <Select options={GENDER_OPTIONS} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <div className="staff-form-section">联系信息</div>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="phone" label="手机号" extra="可选；6–15 位数字，留空清除">
+                <Input maxLength={32} placeholder="例如：13800138000" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <div className="staff-form-section">任职设置</div>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="status" label="状态">
+                <Select
+                  options={[
+                    { value: 'active', label: '启用' },
+                    { value: 'inactive', label: '停用' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="duty_status" label="在岗状态">
+                <Select
+                  disabled={editStatus === 'inactive'}
+                  options={[
+                    { value: 'on', label: '在岗' },
+                    { value: 'off', label: '离岗' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="category_public_id" label="分类" extra="留空表示取消分类">
+                <Select
+                  options={categoryOptions}
+                  loading={categoryQ.isLoading}
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="选择一个分类"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
 
@@ -586,31 +640,59 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
         confirmLoading={create.isPending}
         okText="建档"
         cancelText="取消"
+        width={560}
       >
         <Form
           form={form}
           layout="vertical"
+          initialValues={{ gender: 'unknown' }}
           onFinish={(values) => create.mutate({
-            ...values, code: values.code.trim(), alias: (values.alias ?? '').trim(),
+            ...values,
+            code: values.code.trim(),
+            alias: (values.alias ?? '').trim(),
+            gender: toStaffGender(values.gender),
+            phone: (values.phone ?? '').trim(),
           })}
         >
-          <Form.Item
-            name="code"
-            label="工号"
-            rules={[{ required: true, message: '请输入工号' }, { whitespace: true, message: '工号不能为空' }]}
-          >
-            <Input maxLength={40} placeholder="例如：S001" />
-          </Form.Item>
-          <Form.Item name="alias" label="别名" extra="可选，用于展示与搜索">
-            <Input maxLength={60} placeholder="例如：小王" />
-          </Form.Item>
-          <Form.Item
-            name="display_name"
-            label="姓名"
-            rules={[{ required: true, message: '请输入姓名' }, { whitespace: true, message: '姓名不能为空' }]}
-          >
-            <Input maxLength={60} placeholder="例如：张三" />
-          </Form.Item>
+          <div className="staff-form-section">基本信息</div>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item
+                name="code"
+                label="工号"
+                rules={[{ required: true, message: '请输入工号' }, { whitespace: true, message: '工号不能为空' }]}
+              >
+                <Input maxLength={40} placeholder="例如：S001" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="display_name"
+                label="姓名"
+                rules={[{ required: true, message: '请输入姓名' }, { whitespace: true, message: '姓名不能为空' }]}
+              >
+                <Input maxLength={60} placeholder="例如：张三" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="alias" label="别名" extra="可选，用于展示与搜索">
+                <Input maxLength={60} placeholder="例如：小王" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="gender" label="性别">
+                <Select options={GENDER_OPTIONS} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <div className="staff-form-section">联系信息</div>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="phone" label="手机号" extra="可选；6–15 位数字">
+                <Input maxLength={32} placeholder="例如：13800138000" />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
     </div>
@@ -650,9 +732,15 @@ function StaffWallCard({
         <div className="staff-card-top">
           <Avatar size={36} className="staff-avatar">{item.display_name.slice(0, 1)}</Avatar>
           <div className="staff-identity">
-            <strong>{item.display_name}</strong>
+            <strong>
+              {item.display_name}
+              {item.gender && item.gender !== 'unknown' ? (
+                <em className="staff-gender-tag">{genderLabel(item.gender)}</em>
+              ) : null}
+            </strong>
             <span>
-              {item.code}{item.alias ? ` · ${item.alias}` : ''} · {item.category?.name ?? '未分类'}
+              {item.code}{item.alias ? ` · ${item.alias}` : ''}
+              {item.phone ? ` · ${item.phone}` : ''} · {item.category?.name ?? '未分类'}
             </span>
           </div>
           <span className="staff-state-pill">{stateLabel(item.state)}</span>

@@ -250,6 +250,10 @@ export interface Staff {
   code: string
   /** ADR-0026: optional display/search alias; empty string means not set. */
   alias: string
+  /** ADR-0027: 'unknown' | 'male' | 'female'; 'unknown' means not provided. */
+  gender: string
+  /** ADR-0027: optional contact phone; empty string means not set. */
+  phone: string
   display_name: string
   status: string
   duty_status: 'on' | 'off' | string
@@ -372,6 +376,8 @@ export interface CreateStaffRequest {
   code: string
   display_name: string
   alias?: string
+  gender?: 'unknown' | 'male' | 'female'
+  phone?: string
 }
 
 export interface UpdateStaffRequest {
@@ -379,6 +385,10 @@ export interface UpdateStaffRequest {
   code?: string
   /** ADR-0026: pass "" to clear the alias. */
   alias?: string
+  /** ADR-0027: pass 'unknown' to clear; omit keeps the current value. */
+  gender?: 'unknown' | 'male' | 'female'
+  /** ADR-0027: pass "" to clear; omit keeps the current value. */
+  phone?: string
   display_name?: string
   status?: 'active' | 'inactive'
   duty_status?: 'on' | 'off'
