@@ -6,6 +6,10 @@
 
 ### 新增
 
+- **服务人员页补齐增删改查（纯 UI，无 schema / 端点变更）**：
+  - 卡片新增「详情 / 编辑 / 删除」按钮（与卡片操作菜单互不干扰，按钮不冒泡）；详情走 `GET /staff/{staffId}` 服务端读，展示工号 / 姓名 / 状态 / 在岗 / 分类 / 班次 / 所属队列 / 服务项资质，原「分类」「服务项 N」入口移到同一操作行。
+  - 编辑走 `PATCH /staff/{staffId}`，可改姓名、启用 / 停用、在岗 / 离岗、分类，带 `version`；停用自动置离岗，工号不可改。删除走 `DELETE /staff/{staffId}` 并二次确认；有关联记录无法删除时展示服务端错误（不伪装成功）。
+  - 复用既有 `staffApi.get/update/remove` 与 `queryKeys.staffDetail`，不新增权限或端点；验证：typecheck / lint / 39 项单测 / 生产构建全绿。
 - **班次管理（前端 ADR-0009，对齐后端 ADR-0025 / schema 14）**：
   - 新增 `src/api/shiftTemplates.ts` 与 `ShiftTemplate*` / `AssignShiftTemplateStaffRequest` 类型、`queryKeys.shiftTemplates`；`Staff` / `StaffSummary` 增量 `shift_template`。
   - 新增「班次管理」菜单与 `/shift-templates` 页面：表格列为班次名 / 上班时间 / 下班时间 / 前置上班打卡时间 / 次日标记 / 操作（编辑、删除、分配服务人员），支持新增 / 编辑 / 删除 / 全量分配；分配弹窗回显本班次成员，跨班次勾选自动改派，一人一班由服务端保证。

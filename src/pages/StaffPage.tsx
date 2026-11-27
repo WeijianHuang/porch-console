@@ -11,14 +11,14 @@ import {
   SearchOutlined, TeamOutlined,
 } from '@ant-design/icons'
 import {
-  Avatar, Button, Dropdown, Form, Input, Modal, Select, Space, message,
+  Avatar, Button, Dropdown, Form, Input, Modal, Select, Space, Tag, message,
 } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { catalogApi } from '../api/catalog'
 import { queryKeys } from '../api/keys'
 import { staffApi } from '../api/queues'
 import { staffCategoriesApi } from '../api/staffCategories'
-import type { CreateStaffRequest, StaffSummary } from '../api/types'
+import type { CreateStaffRequest, StaffSummary, UpdateStaffRequest } from '../api/types'
 import PageHeader from '../components/PageHeader'
 import StaffActionProvider from '../components/StaffActionProvider'
 import { EmptyHint, ErrorState, PageLoading } from '../components/RequestState'
@@ -32,6 +32,13 @@ import {
 interface StaffForm {
   code: string
   display_name: string
+}
+
+interface StaffEditForm {
+  display_name: string
+  status: 'active' | 'inactive'
+  duty_status: 'on' | 'off'
+  category_public_id?: string
 }
 
 export default function StaffPage() {
@@ -55,9 +62,13 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
   const shopId = useShopStore((state) => state.currentShopId)
   const { menuProps } = useStaffActionMenu()
   const [form] = Form.useForm<StaffForm>()
+  const [editForm] = Form.useForm<StaffEditForm>()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [bucket, setBucket] = useState<StaffBucket | 'all'>('all')
+  const [detailTarget, setDetailTarget] = useState<StaffSummary | null>(null)
+  const [editTarget, setEditTarget] = useState<StaffSummary | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<StaffSummary | null>(null)
   const [qualTarget, setQualTarget] = useState<StaffSummary | null>(null)
   const [qualIds, setQualIds] = useState<string[]>([])
   const [categoryTarget, setCategoryTarget] = useState<StaffSummary | null>(null)
@@ -68,6 +79,13 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
     queryKey: queryKeys.staff(shopId ?? ''),
     queryFn: () => staffApi.list(shopId!),
     enabled: Boolean(shopId),
+  })
+
+  // "查" reads the server-side detail, not the card's cached summary.
+  const detailQuery = useQuery({
+    queryKey: queryKeys.staffDetail(shopId ?? '', detailTarget?.public_id ?? ''),
+    queryFn: () => staffApi.get(shopId!, detailTarget!.public_id),
+    enabled: Boolean(shopId && detailTarget),
   })
 
   const create = useMutation({
@@ -86,7 +104,7 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
   const catalogQ = useQuery({
     queryKey: queryKeys.catalog,
     queryFn: () => catalogApi.list(),
-    enabled: Boolean(qualTarget),
+    enabled: Boolean(qualTarget || detailTarget),
   })
   // ADR-0024: one shop-scoped category per staff member, used by the order
   // entry picker to filter people. It is classification, not qualification.
@@ -108,6 +126,11 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
       .map((item) => ({ value: item.public_id, label: `${item.name} · ${item.sku}` })),
     [catalogQ.data],
   )
+  const serviceNames = useMemo(
+    () => new Map((catalogQ.data?.data ?? []).map((item) => [item.public_id, item.name] as const)),
+    [catalogQ.data],
+  )
+  const editStatus = Form.useWatch('status', editForm)
 
   const saveQualification = useMutation({
     mutationFn: () => staffApi.setServiceItems(shopId!, qualTarget!.public_id, {
@@ -140,6 +163,52 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
   const refreshStaff = () => {
     void staffQuery.refetch()
     void queryClient.invalidateQueries({ queryKey: queryKeys.staff(shopId!) })
+  }
+
+  const update = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateStaffRequest }) =>
+      staffApi.update(shopId!, id, body),
+    onSuccess: () => {
+      setEditTarget(null)
+      message.success('服务人员资料已更新')
+      refreshStaff()
+    },
+    onError: (error) => message.error((error as Error).message || '资料更新失败'),
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: string) => staffApi.remove(shopId!, id),
+    onSuccess: () => {
+      setDeleteTarget(null)
+      message.success('服务人员已删除')
+      refreshStaff()
+    },
+    onError: (error) => message.error((error as Error).message || '删除失败'),
+  })
+
+  const openDetail = (item: StaffSummary) => setDetailTarget(item)
+
+  const openEdit = (item: StaffSummary) => {
+    editForm.setFieldsValue({
+      display_name: item.display_name,
+      status: item.status === 'inactive' ? 'inactive' : 'active',
+      duty_status: item.duty_status === 'on' ? 'on' : 'off',
+      category_public_id: item.category?.public_id ?? '',
+    })
+    setEditTarget(item)
+  }
+
+  const submitEdit = (values: StaffEditForm) => {
+    if (!editTarget) return
+    const body: UpdateStaffRequest = {
+      display_name: values.display_name.trim(),
+      status: values.status,
+      // ADR-0015: an inactive operator cannot stay on duty.
+      duty_status: values.status === 'inactive' ? 'off' : values.duty_status,
+      category_public_id: values.category_public_id ?? '',
+      version: editTarget.version,
+    }
+    update.mutate({ id: editTarget.public_id, body })
   }
 
   const saveCategory = useMutation({
@@ -301,6 +370,9 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
                 key={item.public_id}
                 item={item}
                 binding={menuProps(item)}
+                onDetail={() => openDetail(item)}
+                onEdit={canWrite ? () => openEdit(item) : undefined}
+                onDelete={canWrite ? () => setDeleteTarget(item) : undefined}
                 onQualification={canWrite ? () => openQualification(item) : undefined}
                 onCategory={canWrite ? () => openCategory(item) : undefined}
               />
@@ -375,6 +447,118 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
       </Modal>
 
       <Modal
+        title={`服务人员详情 · ${detailTarget?.display_name ?? ''}`}
+        open={Boolean(detailTarget)}
+        onCancel={() => setDetailTarget(null)}
+        footer={<Button onClick={() => setDetailTarget(null)}>关闭</Button>}
+        width={520}
+        destroyOnHidden
+      >
+        {detailQuery.isPending ? <PageLoading /> : detailQuery.error ? (
+          <ErrorState error={detailQuery.error} onRetry={() => void detailQuery.refetch()} />
+        ) : detailQuery.data ? (
+          <div className="staff-detail">
+            <div className="staff-detail-grid">
+              <div><span>工号</span><strong>{detailQuery.data.data.code}</strong></div>
+              <div><span>姓名</span><strong>{detailQuery.data.data.display_name}</strong></div>
+              <div><span>状态</span><strong>{detailQuery.data.data.status === 'active' ? '启用' : '停用'}</strong></div>
+              <div><span>在岗状态</span><strong>{detailQuery.data.data.duty_status === 'on' ? '在岗' : '离岗'}</strong></div>
+              <div><span>分类</span><strong>{detailQuery.data.data.category?.name ?? '未分类'}</strong></div>
+              <div>
+                <span>所属班次</span>
+                <strong>
+                  {detailQuery.data.data.shift_template
+                    ? `${detailQuery.data.data.shift_template.name} · ${detailQuery.data.data.shift_template.start_time}–${detailQuery.data.data.shift_template.end_time}`
+                    : '未分配'}
+                </strong>
+              </div>
+              <div><span>创建时间</span><strong>{detailQuery.data.data.created_at}</strong></div>
+              <div><span>最后更新</span><strong>{detailQuery.data.data.updated_at}</strong></div>
+            </div>
+            <div className="staff-detail-section">
+              <h4>所属队列</h4>
+              {detailQuery.data.data.queues.length === 0 ? (
+                <span className="staff-queue-empty">未分配队列</span>
+              ) : detailQuery.data.data.queues.map((queue) => (
+                <Tag key={queue.public_id}>{queue.seq} · {queue.name}</Tag>
+              ))}
+            </div>
+            <div className="staff-detail-section">
+              <h4>服务项资质</h4>
+              {(detailQuery.data.data.service_item_ids ?? []).length === 0 ? (
+                <span className="staff-queue-empty">暂无服务项资质</span>
+              ) : (detailQuery.data.data.service_item_ids ?? []).map((id) => (
+                <Tag key={id}>{serviceNames.get(id) ?? id}</Tag>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        title={`编辑服务人员 · ${editTarget?.display_name ?? ''}`}
+        open={Boolean(editTarget)}
+        onCancel={() => setEditTarget(null)}
+        onOk={() => editForm.submit()}
+        confirmLoading={update.isPending}
+        okText="保存"
+        cancelText="取消"
+        destroyOnHidden
+      >
+        <p className="qual-hint">工号创建后不可修改；停用后会自动置为离岗。</p>
+        <Form form={editForm} layout="vertical" onFinish={submitEdit}>
+          <Form.Item
+            name="display_name"
+            label="姓名"
+            rules={[{ required: true, message: '请输入姓名' }, { whitespace: true, message: '姓名不能为空' }]}
+          >
+            <Input maxLength={60} placeholder="例如：张三" />
+          </Form.Item>
+          <Form.Item name="status" label="状态">
+            <Select
+              options={[
+                { value: 'active', label: '启用' },
+                { value: 'inactive', label: '停用' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="duty_status" label="在岗状态">
+            <Select
+              disabled={editStatus === 'inactive'}
+              options={[
+                { value: 'on', label: '在岗' },
+                { value: 'off', label: '离岗' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="category_public_id" label="分类" extra="留空表示取消分类">
+            <Select
+              options={categoryOptions}
+              loading={categoryQ.isLoading}
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              placeholder="选择一个分类"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="删除服务人员"
+        open={Boolean(deleteTarget)}
+        onCancel={() => setDeleteTarget(null)}
+        onOk={() => deleteTarget && remove.mutate(deleteTarget.public_id)}
+        confirmLoading={remove.isPending}
+        okText="确认删除"
+        okButtonProps={{ danger: true }}
+        cancelText="取消"
+      >
+        <p>确定删除「{deleteTarget?.display_name}」（{deleteTarget?.code}）吗？此操作不可撤销。</p>
+        <p className="qual-hint">已有关联记录（例如持卡历史、单据明细）的人员无法删除，请先停用并保留档案。</p>
+      </Modal>
+
+      <Modal
         title="新建服务人员"
         open={open}
         onCancel={() => setOpen(false)}
@@ -405,10 +589,13 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
 }
 
 function StaffWallCard({
-  item, binding, onQualification, onCategory,
+  item, binding, onDetail, onEdit, onDelete, onQualification, onCategory,
 }: {
   item: StaffSummary
   binding: StaffMenuBinding
+  onDetail: () => void
+  onEdit?: () => void
+  onDelete?: () => void
   onQualification?: () => void
   onCategory?: () => void
 }) {
@@ -458,6 +645,37 @@ function StaffWallCard({
           </span>
           {item.status !== 'active' ? <span className="pill off">停用</span> : null}
           {item.stop_rotation ? <span className="staff-no-rotation">不轮转</span> : null}
+          <span className="staff-open-hint">点击操作</span>
+        </div>
+        <div className="staff-wall-actions">
+          <button
+            type="button"
+            className="staff-qual-btn"
+            onClick={(event) => { event.stopPropagation(); onDetail() }}
+            onKeyDown={(event) => event.stopPropagation()}
+          >
+            详情
+          </button>
+          {onEdit ? (
+            <button
+              type="button"
+              className="staff-qual-btn"
+              onClick={(event) => { event.stopPropagation(); onEdit() }}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              编辑
+            </button>
+          ) : null}
+          {onDelete ? (
+            <button
+              type="button"
+              className="staff-qual-btn is-danger"
+              onClick={(event) => { event.stopPropagation(); onDelete() }}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              删除
+            </button>
+          ) : null}
           {onCategory ? (
             <button
               type="button"
@@ -478,7 +696,6 @@ function StaffWallCard({
               服务项 {item.service_item_ids?.length ?? 0}
             </button>
           ) : null}
-          <span className="staff-open-hint">点击操作</span>
         </div>
       </article>
     </Dropdown>

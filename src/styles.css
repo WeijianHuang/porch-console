@@ -2097,6 +2097,50 @@ textarea {
   border-color: var(--forest-500, #3f7d58);
   color: var(--forest-500, #3f7d58);
 }
+.staff-qual-btn.is-danger:hover {
+  border-color: #c0392b;
+  color: #c0392b;
+}
+.staff-wall-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-self: stretch;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--b-line, #d9e2da);
+}
+.staff-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+.staff-detail-grid > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.staff-detail-grid span {
+  color: var(--b-muted, #6b7b70);
+  font-size: 11px;
+}
+.staff-detail-grid strong {
+  overflow-wrap: anywhere;
+  color: var(--ink-900, #16231d);
+  font-size: 13px;
+  font-weight: 600;
+}
+.staff-detail-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--b-line, #d9e2da);
+}
+.staff-detail-section h4 {
+  margin: 0 0 8px;
+  color: var(--ink-900, #16231d);
+  font-size: 13px;
+  font-weight: 600;
+}
 .qual-hint {
   margin: 0 0 10px;
   color: var(--b-muted, #6b7b70);
@@ -3130,7 +3174,7 @@ textarea {
   color: var(--amber-500);
   font-weight: 600;
 }
-.staff-card-foot .staff-qual-btn {
+.staff-wall-actions .staff-qual-btn {
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
