@@ -248,6 +248,8 @@ export interface AssignShiftTemplateStaffRequest {
 export interface Staff {
   public_id: string
   code: string
+  /** ADR-0026: optional display/search alias; empty string means not set. */
+  alias: string
   display_name: string
   status: string
   duty_status: 'on' | 'off' | string
@@ -369,9 +371,14 @@ export interface UpdateQueueRequest {
 export interface CreateStaffRequest {
   code: string
   display_name: string
+  alias?: string
 }
 
 export interface UpdateStaffRequest {
+  /** ADR-0026: shop-unique; public_id stays immutable. */
+  code?: string
+  /** ADR-0026: pass "" to clear the alias. */
+  alias?: string
   display_name?: string
   status?: 'active' | 'inactive'
   duty_status?: 'on' | 'off'

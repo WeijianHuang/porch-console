@@ -31,10 +31,13 @@ import {
 
 interface StaffForm {
   code: string
+  alias?: string
   display_name: string
 }
 
 interface StaffEditForm {
+  code: string
+  alias?: string
   display_name: string
   status: 'active' | 'inactive'
   duty_status: 'on' | 'off'
@@ -190,6 +193,8 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
 
   const openEdit = (item: StaffSummary) => {
     editForm.setFieldsValue({
+      code: item.code,
+      alias: item.alias ?? '',
       display_name: item.display_name,
       status: item.status === 'inactive' ? 'inactive' : 'active',
       duty_status: item.duty_status === 'on' ? 'on' : 'off',
@@ -201,6 +206,8 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
   const submitEdit = (values: StaffEditForm) => {
     if (!editTarget) return
     const body: UpdateStaffRequest = {
+      code: values.code.trim(),
+      alias: (values.alias ?? '').trim(),
       display_name: values.display_name.trim(),
       status: values.status,
       // ADR-0015: an inactive operator cannot stay on duty.
@@ -254,7 +261,9 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
     return staff.filter((item) => {
       if (bucket !== 'all' && bucketOf(item.state) !== bucket) return false
       if (!q) return true
-      return item.display_name.toLowerCase().includes(q) || item.code.toLowerCase().includes(q)
+      return item.display_name.toLowerCase().includes(q)
+        || item.code.toLowerCase().includes(q)
+        || (item.alias ?? '').toLowerCase().includes(q)
     })
   }, [staff, search, bucket])
 
@@ -461,6 +470,7 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
             <div className="staff-detail-grid">
               <div><span>工号</span><strong>{detailQuery.data.data.code}</strong></div>
               <div><span>姓名</span><strong>{detailQuery.data.data.display_name}</strong></div>
+              <div><span>别名</span><strong>{detailQuery.data.data.alias || '—'}</strong></div>
               <div><span>状态</span><strong>{detailQuery.data.data.status === 'active' ? '启用' : '停用'}</strong></div>
               <div><span>在岗状态</span><strong>{detailQuery.data.data.duty_status === 'on' ? '在岗' : '离岗'}</strong></div>
               <div><span>分类</span><strong>{detailQuery.data.data.category?.name ?? '未分类'}</strong></div>
@@ -505,8 +515,18 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
         cancelText="取消"
         destroyOnHidden
       >
-        <p className="qual-hint">工号创建后不可修改；停用后会自动置为离岗。</p>
+        <p className="qual-hint">工号在本店必须唯一；停用后会自动置为离岗。</p>
         <Form form={editForm} layout="vertical" onFinish={submitEdit}>
+          <Form.Item
+            name="code"
+            label="工号"
+            rules={[{ required: true, message: '请输入工号' }, { whitespace: true, message: '工号不能为空' }]}
+          >
+            <Input maxLength={40} placeholder="例如：S001" />
+          </Form.Item>
+          <Form.Item name="alias" label="别名" extra="可选，留空清除；用于展示与搜索">
+            <Input maxLength={60} placeholder="例如：小王" />
+          </Form.Item>
           <Form.Item
             name="display_name"
             label="姓名"
@@ -567,13 +587,22 @@ function StaffWall({ canWrite }: { canWrite: boolean }) {
         okText="建档"
         cancelText="取消"
       >
-        <Form form={form} layout="vertical" onFinish={(values) => create.mutate(values)}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={(values) => create.mutate({
+            ...values, code: values.code.trim(), alias: (values.alias ?? '').trim(),
+          })}
+        >
           <Form.Item
             name="code"
             label="工号"
             rules={[{ required: true, message: '请输入工号' }, { whitespace: true, message: '工号不能为空' }]}
           >
             <Input maxLength={40} placeholder="例如：S001" />
+          </Form.Item>
+          <Form.Item name="alias" label="别名" extra="可选，用于展示与搜索">
+            <Input maxLength={60} placeholder="例如：小王" />
           </Form.Item>
           <Form.Item
             name="display_name"
@@ -622,7 +651,9 @@ function StaffWallCard({
           <Avatar size={36} className="staff-avatar">{item.display_name.slice(0, 1)}</Avatar>
           <div className="staff-identity">
             <strong>{item.display_name}</strong>
-            <span>{item.code} · {item.category?.name ?? '未分类'}</span>
+            <span>
+              {item.code}{item.alias ? ` · ${item.alias}` : ''} · {item.category?.name ?? '未分类'}
+            </span>
           </div>
           <span className="staff-state-pill">{stateLabel(item.state)}</span>
         </div>
