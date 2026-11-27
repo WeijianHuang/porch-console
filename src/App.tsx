@@ -17,6 +17,7 @@ import RoomsPage from './pages/RoomsPage'
 import RulesPage from './pages/RulesPage'
 import ShopSettingsPage from './pages/ShopSettingsPage'
 import ShopsPage from './pages/ShopsPage'
+import ShiftTemplatesPage from './pages/ShiftTemplatesPage'
 import StaffPage from './pages/StaffPage'
 import { useAuthStore } from './stores/authStore'
 
@@ -76,6 +77,7 @@ export default function App() {
             <Route path="/home" element={<HomePage />} />
             <Route path="/queues" element={<QueuesPage />} />
             <Route path="/staff" element={<StaffPage />} />
+            <Route path="/shift-templates" element={<ShiftTemplatesPage />} />
             <Route path="/rooms" element={<RoomsPage />} />
             <Route path="/cards" element={<CardsPage />} />
             <Route path="/board" element={<BoardPage />} />

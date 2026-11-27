@@ -3136,3 +3136,51 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Shift template management (porch-console ADR-0009). */
+.shift-template-panel {
+  overflow: hidden;
+}
+.panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-600);
+  font-weight: 600;
+}
+.panel-heading-count {
+  margin-left: auto;
+  color: var(--ink-500);
+  font-size: 12px;
+  font-weight: 400;
+}
+.shift-staff-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.shift-staff-option {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.4;
+}
+.shift-staff-option small {
+  color: var(--ink-500);
+}
+.modal-hint {
+  margin: 0 0 12px;
+  color: var(--ink-500);
+  font-size: 13px;
+}
+.cell-muted {
+  color: var(--ink-500);
+}
+@media (max-width: 900px) {
+  .shift-staff-grid {
+    grid-template-columns: 1fr;
+  }
+}

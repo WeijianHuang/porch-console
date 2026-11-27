@@ -6,6 +6,10 @@
 
 ### 新增
 
+- **班次管理（前端 ADR-0009，对齐后端 ADR-0025 / schema 14）**：
+  - 新增 `src/api/shiftTemplates.ts` 与 `ShiftTemplate*` / `AssignShiftTemplateStaffRequest` 类型、`queryKeys.shiftTemplates`；`Staff` / `StaffSummary` 增量 `shift_template`。
+  - 新增「班次管理」菜单与 `/shift-templates` 页面：表格列为班次名 / 上班时间 / 下班时间 / 前置上班打卡时间 / 次日标记 / 操作（编辑、删除、分配服务人员），支持新增 / 编辑 / 删除 / 全量分配；分配弹窗回显本班次成员，跨班次勾选自动改派，一人一班由服务端保证。
+  - 文案统一为「服务人员 / 班次 / 次日标记」，不做打卡、头牌、绩效规则；验证：typecheck / lint / 39 项单测 / 生产构建全绿，1440 宽度无横向溢出。
 - **服务人员分类与开单辅助选人（前端 ADR-0008，对齐后端 ADR-0024 / schema 13）**：
   - `api/types.ts` 增 `StaffCategory` / `CatalogCategory` 与服务人员、目录项分类投影；新增 `src/api/staffCategories.ts`，`catalogApi.categories()` 与 `queryKeys` 增分类键。
   - 服务人员页卡片显示分类，并提供「分类」单选弹窗（可清空、可就地新建分类），写走 `PATCH /staff/{staffId}` 的 `category_public_id` 与 `POST /staff-categories`。

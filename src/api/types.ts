@@ -206,6 +206,45 @@ export interface UpdateStaffCategoryRequest {
   version: number
 }
 
+/** ADR-0025: reusable shift template; one per staff member, many staff per template. */
+export interface ShiftTemplateRef {
+  public_id: string
+  name: string
+  start_time: string
+  end_time: string
+}
+
+export interface ShiftTemplate extends ShiftTemplateRef {
+  sort_order: number
+  check_in_lead_minutes: number
+  next_day_flag: boolean
+  version: number
+}
+
+export interface CreateShiftTemplateRequest {
+  name: string
+  start_time: string
+  end_time: string
+  check_in_lead_minutes?: number
+  next_day_flag?: boolean
+  sort_order?: number
+}
+
+export interface UpdateShiftTemplateRequest {
+  name?: string
+  start_time?: string
+  end_time?: string
+  check_in_lead_minutes?: number
+  next_day_flag?: boolean
+  sort_order?: number
+  version: number
+}
+
+export interface AssignShiftTemplateStaffRequest {
+  staff_public_ids: string[]
+  version: number
+}
+
 export interface Staff {
   public_id: string
   code: string
@@ -216,6 +255,7 @@ export interface Staff {
   created_at: string
   updated_at: string
   category?: StaffCategoryRef | null
+  shift_template?: ShiftTemplateRef | null
 }
 
 export interface StaffDetail extends Staff {
