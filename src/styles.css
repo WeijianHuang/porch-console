@@ -2781,44 +2781,73 @@ textarea {
 }
 .home-queue-members {
   display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 6px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   min-height: 26px;
 }
-.home-queue-member {
-  display: inline-flex;
-  align-items: center;
+/* One staff member = one vertical cell. Duty status drives both the accent
+   strip and the pill, so the on/off split stays readable without a legend. */
+.home-staff-cell {
+  --staff-accent: var(--forest-500);
+  --staff-bg: var(--mint-50);
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  padding: 3px 9px 3px 8px;
-  border-radius: 999px;
-  background: var(--line-soft);
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--staff-accent);
+  border-radius: var(--radius-md);
+  background: var(--staff-bg);
+}
+.home-staff-cell[data-duty='off'] {
+  --staff-accent: #b8c2bc;
+  --staff-bg: #f7f8f7;
+}
+.home-staff-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.home-staff-top strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-900);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-staff-top .pill {
+  flex: none;
+  padding: 1px 8px;
+  font-size: 11px;
+}
+.home-staff-rows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 10px;
+}
+.home-staff-rows > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-500);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-staff-rows b {
   color: var(--ink-700);
-  font-size: 12px;
-}
-.home-queue-member::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--forest-500);
-}
-.home-queue-member[data-duty='off'] {
-  color: var(--ink-500);
-}
-.home-queue-member[data-duty='off']::before {
-  background: #c2ccc6;
-}
-.home-queue-member.is-more {
-  background: transparent;
-  color: var(--ink-500);
-}
-.home-queue-member.is-more::before {
-  display: none;
+  font-weight: 600;
 }
 .home-queue-empty {
   color: var(--ink-500);
   font-size: 12px;
+}
+.home-queue-empty.is-more {
+  padding-top: 2px;
 }
 .home-queue-foot {
   display: flex;

@@ -13,9 +13,9 @@ import {
 import { Button, Card, Space } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { queryKeys } from '../api/keys'
-import { queuesApi } from '../api/queues'
+import { queuesApi, staffApi } from '../api/queues'
 import { roomsApi } from '../api/rooms'
-import type { Room } from '../api/types'
+import type { Room, StaffSummary } from '../api/types'
 import PageHeader from '../components/PageHeader'
 import OrderEntryModal from '../components/OrderEntryModal'
 import { EmptyHint, ErrorState, PageLoading } from '../components/RequestState'
@@ -24,8 +24,17 @@ import { floorLabel, groupByFloor } from '../shop/roomGroup'
 import { hasPermission, useAuthStore } from '../stores/authStore'
 import { useShopStore } from '../stores/shopStore'
 
-/** How many names fit in a queue card before the rest collapse into "+N". */
+/** How many staff cells fit in a queue card before the rest collapse into "+N". */
 const MEMBER_PREVIEW = 6
+
+/**
+ * ADR-0017 still reserves the remaining-minutes field: no live service start
+ * exists yet, so never turn null into a number. A plain dash is the honest
+ * placeholder; a future ADR can replace this formatter without touching JSX.
+ */
+function remainingLabel(minutes: number | null | undefined): string {
+  return minutes == null ? '—' : `${minutes} 分钟`
+}
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -43,6 +52,13 @@ export default function HomePage() {
   const queuesQuery = useQuery({
     queryKey: queryKeys.queues(shopId ?? ''),
     queryFn: () => queuesApi.list(shopId!),
+    enabled: Boolean(shopId),
+  })
+  // One flat list supplies alias, code, shift and the reserved remaining-minutes
+  // field for every lane. Joined by public id in memory (DA-01: no N+1).
+  const staffQuery = useQuery({
+    queryKey: queryKeys.staff(shopId ?? ''),
+    queryFn: () => staffApi.list(shopId!),
     enabled: Boolean(shopId),
   })
   const roomsQuery = useQuery({
@@ -63,6 +79,11 @@ export default function HomePage() {
       enabled: Boolean(shopId),
     })),
   })
+  const staffById = useMemo(() => {
+    const map = new Map<string, StaffSummary>()
+    for (const staff of staffQuery.data?.data ?? []) map.set(staff.public_id, staff)
+    return map
+  }, [staffQuery.data])
 
   const rooms = useMemo(
     () => groupByFloor(roomsQuery.data?.data ?? []).flatMap((group) => group.rooms),
@@ -131,7 +152,7 @@ export default function HomePage() {
       <Card className="panel">
         <div className="panel-head">
           <h2>调度看板队列</h2>
-          <span className="muted">按序号排列，成员取队列内位次顺序，最多显示 {MEMBER_PREVIEW} 人</span>
+          <span className="muted">按序号排列，人员按位次竖向展示，最多显示 {MEMBER_PREVIEW} 人；颜色区分在岗状态</span>
         </div>
         {queueViews.length === 0 ? (
           <EmptyHint>该门店还没有队列，可先到「队列看板」新建</EmptyHint>
@@ -165,18 +186,37 @@ export default function HomePage() {
                       <span className="home-queue-empty">暂无服务人员</span>
                     ) : (
                       <>
-                        {visible.map((member) => (
-                          <span
-                            className="home-queue-member"
-                            data-duty={member.duty_status === 'on' ? 'on' : 'off'}
-                            key={member.public_id}
-                            title={`位次 ${member.position} · ${member.duty_status === 'on' ? '在岗' : '离岗'}`}
-                          >
-                            {member.display_name}
-                          </span>
-                        ))}
+                        {visible.map((member) => {
+                          const summary = staffById.get(member.public_id)
+                          const dutyOn = (summary?.duty_status ?? member.duty_status) === 'on'
+                          return (
+                            <article
+                              className="home-staff-cell"
+                              data-duty={dutyOn ? 'on' : 'off'}
+                              key={member.public_id}
+                              title={`位次 ${member.position} · ${dutyOn ? '在岗' : '离岗'}`}
+                            >
+                              <div className="home-staff-top">
+                                <strong title={member.display_name}>{member.display_name}</strong>
+                                <span className={`pill ${dutyOn ? 'on' : 'off'}`}>
+                                  {dutyOn ? '在岗' : '离岗'}
+                                </span>
+                              </div>
+                              <div className="home-staff-rows">
+                                <span title={summary?.alias || undefined}>
+                                  别名 <b>{summary?.alias?.trim() || '—'}</b>
+                                </span>
+                                <span>编码 <b>{summary?.code || '—'}</b></span>
+                                <span>班次 <b>{summary?.shift_template?.name || '未分配'}</b></span>
+                                <span title="服务剩余时间由订单域提供，当前暂无在途服务计时">
+                                  剩余 <b>{remainingLabel(summary?.service_remaining_minutes)}</b>
+                                </span>
+                              </div>
+                            </article>
+                          )
+                        })}
                         {hidden > 0 ? (
-                          <span className="home-queue-member is-more">+{hidden}</span>
+                          <span className="home-queue-empty is-more">+{hidden} 人未显示</span>
                         ) : null}
                       </>
                     )}
